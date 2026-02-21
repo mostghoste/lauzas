@@ -66,12 +66,10 @@ CREATE POLICY rooms_insert ON rooms
     auth.uid() = user1_id AND user2_id IS NULL
   );
 
--- rooms: UPDATE (either participant)
+-- rooms: UPDATE — intentionally no client-side UPDATE policy.
+-- All room mutations go through SECURITY DEFINER RPCs which bypass RLS:
+--   find_or_create_room, add_wood, leave_room, try_rematch
 DROP POLICY IF EXISTS rooms_update ON rooms;
-CREATE POLICY rooms_update ON rooms
-  FOR UPDATE USING (
-    auth.uid() = user1_id OR auth.uid() = user2_id
-  );
 
 -- messages: SELECT (must be in the room)
 DROP POLICY IF EXISTS messages_select ON messages;
