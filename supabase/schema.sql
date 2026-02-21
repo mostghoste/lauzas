@@ -288,7 +288,7 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COUNT(DISTINCT uid)::integer FROM (
+  SELECT COUNT(DISTINCT uid)::integer + 4 FROM (
     SELECT user1_id AS uid FROM rooms WHERE status IN ('waiting', 'active')
     UNION ALL
     SELECT user2_id AS uid FROM rooms WHERE status IN ('waiting', 'active') AND user2_id IS NOT NULL

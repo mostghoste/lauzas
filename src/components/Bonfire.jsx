@@ -44,6 +44,19 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
     return () => clearInterval(timerRef.current)
   }, [room?.fire_expires_at, room?.status, isStatic])
 
+  // Ctrl+Space shortcut for add wood
+  useEffect(() => {
+    if (isStatic) return
+    function onKeyDown(e) {
+      if (e.code === 'Space' && e.ctrlKey) {
+        e.preventDefault()
+        handleAddWood()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [room, woodCooldown, addingWood])
+
   // Cooldown ticker
   useEffect(() => {
     if (woodCooldown <= 0) return
