@@ -10,8 +10,15 @@ function sielaForm(n) {
   return 'sielos'
 }
 
+const WARNINGS = [
+  { icon: 'fa-solid fa-lock', text: 'Moderavimo tikslais, tavo pokalbis gali būti saugomas.' },
+  { icon: 'fa-solid fa-eye', text: 'Išlik budrus, neatskleisk asmeninių duomenų.' },
+  { icon: 'fa-solid fa-handshake', text: 'Kitoje pusėje ekrano žmogus - išlik draugiškas.' },
+]
+
 export default function Landing({ onFindFire, searching, error }) {
   const [onlineCount, setOnlineCount] = useState(null)
+  const [showWarning, setShowWarning] = useState(false)
 
   useEffect(() => {
     fetchCount()
@@ -24,8 +31,31 @@ export default function Landing({ onFindFire, searching, error }) {
     if (data !== null) setOnlineCount(data)
   }
 
+  function handleFindFire() {
+    setShowWarning(true)
+  }
+
+  function handleConfirm() {
+    setShowWarning(false)
+    onFindFire()
+  }
+
   return (
     <div className="landing">
+      {showWarning && (
+        <div className="warning-overlay" onClick={() => setShowWarning(false)}>
+          <div className="warning-modal" onClick={e => e.stopPropagation()}>
+            <p className="warning-title">Prieš žengiant į mišką, atsimink:</p>
+            <ul className="warning-list">
+              {WARNINGS.map((w, i) => (
+                <li key={i}><i className={`warning-icon ${w.icon}`} />{w.text}</li>
+              ))}
+            </ul>
+            <button className="btn-primary" onClick={handleConfirm}>Sutinku</button>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="landing-title">laužas</h1>
         <p className="landing-sub">
@@ -35,7 +65,7 @@ export default function Landing({ onFindFire, searching, error }) {
 
       <button
         className="btn-primary"
-        onClick={onFindFire}
+        onClick={handleFindFire}
         disabled={searching}
       >
         {searching

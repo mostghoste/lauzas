@@ -23,6 +23,7 @@ function sielaForm(n) {
 import Bonfire from './Bonfire'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
+import KeyboardHints from './KeyboardHints'
 
 export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave, onSearchAgain }) {
   const [messages, setMessages] = useState([])
@@ -253,6 +254,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   return (
     <div className="chat-room">
+      <KeyboardHints appState={appState} />
       {!isEnded && (
         <button
           className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}

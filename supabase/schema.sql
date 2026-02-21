@@ -249,7 +249,7 @@ BEGIN
 
   UPDATE rooms
   SET fire_expires_at = LEAST(
-    GREATEST(fire_expires_at, now()) + interval '30 seconds',
+    GREATEST(fire_expires_at, now()) + interval '1 minute',
     now() + interval '10 minutes'
   )
   WHERE id = p_room_id
@@ -288,7 +288,7 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COUNT(DISTINCT uid)::integer + 4 FROM (
+  SELECT COUNT(DISTINCT uid)::integer + 2 FROM (
     SELECT user1_id AS uid FROM rooms WHERE status IN ('waiting', 'active')
     UNION ALL
     SELECT user2_id AS uid FROM rooms WHERE status IN ('waiting', 'active') AND user2_id IS NOT NULL

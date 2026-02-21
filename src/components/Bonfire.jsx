@@ -78,7 +78,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
     try {
       await supabase.rpc('add_wood', { p_room_id: room.id })
       await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'add_wood' })
-      setWoodCooldown(15)
+      setWoodCooldown(3)
     } finally {
       setAddingWood(false)
     }
