@@ -8,7 +8,8 @@ const ENDED_TAGLINES = [
   'Pelenų krūva skaudžiai primena, kad viskas yra laikina.',
   'Susidūrusios sielos vėl išeina savais keliais.',
   'Stovyklavietėje įsivyrauja tyla. Metas tęsti kelionę.',
-  'Ugnis iškosėja paskutinį dūmų kamuolį. Atėjo paskutinioji.'
+  'Ugnis iškosėja paskutinį dūmų kamuolį.',
+  'Be laužo šviesos, tamsa staiga atrodo dar tamsesnė.'
 ]
 
 function sielaForm(n) {
@@ -229,17 +230,14 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   return (
     <div className="chat-room">
-      <div className="chat-header">
-        <span className="chat-header-title">laužas</span>
-        {!isEnded && (
-          <button
-            className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
-            onClick={handleLeaveClick}
-          >
-            {isChatting && leaveConfirm ? 'Ar tikrai nori išeiti?' : 'išeiti'}
-          </button>
-        )}
-      </div>
+      {!isEnded && (
+        <button
+          className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
+          onClick={handleLeaveClick}
+        >
+          {isChatting && leaveConfirm ? 'Ar tikrai nori išeiti?' : 'išeiti'}
+        </button>
+      )}
 
       {(isChatting || (isEnded && room?.fire_expires_at)) && (
         <Bonfire

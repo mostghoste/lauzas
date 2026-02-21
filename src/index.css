@@ -142,25 +142,14 @@ body {
   background: var(--surface);
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
+  position: relative;
 }
 
-.chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.chat-header-title {
-  font-size: 1rem;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  font-family: 'Jersey 15', monospace;
-}
 
 .btn-leave {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -172,6 +161,7 @@ body {
   cursor: pointer;
   letter-spacing: 0.05em;
   transition: border-color 0.2s, color 0.2s;
+  z-index: 10;
 }
 
 .btn-leave:hover {
