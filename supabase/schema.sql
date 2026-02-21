@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   created_at      timestamptz NOT NULL DEFAULT now(),
   status          text NOT NULL DEFAULT 'waiting'
                     CHECK (status IN ('waiting', 'active', 'ended')),
-  fire_expires_at timestamptz NOT NULL DEFAULT (now() + interval '3 minutes'),
+  fire_expires_at timestamptz,
   user1_id        uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   user2_id        uuid REFERENCES auth.users(id) ON DELETE SET NULL
 );
@@ -123,10 +123,11 @@ BEGIN
     RETURN v_room_id;
   END IF;
 
-  -- 2. Try to join a waiting room from another user
+  -- 2. Try to join a waiting room from another user; start the timer now
   UPDATE rooms
-  SET user2_id = v_uid,
-      status   = 'active'
+  SET user2_id        = v_uid,
+      status          = 'active',
+      fire_expires_at = now() + interval '3 minutes'
   WHERE id = (
     SELECT id FROM rooms
     WHERE status   = 'waiting'
@@ -142,9 +143,9 @@ BEGIN
     RETURN v_room_id;
   END IF;
 
-  -- 3. No room found — create a new waiting room
-  INSERT INTO rooms (user1_id, status, fire_expires_at)
-  VALUES (v_uid, 'waiting', now() + interval '3 minutes')
+  -- 3. No room found — create a new waiting room (timer starts when matched)
+  INSERT INTO rooms (user1_id, status)
+  VALUES (v_uid, 'waiting')
   RETURNING id INTO v_room_id;
 
   RETURN v_room_id;

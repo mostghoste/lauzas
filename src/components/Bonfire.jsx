@@ -87,7 +87,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
               onClick={handleAddWood}
               disabled={woodCooldown > 0 || addingWood || effectiveTimeLeft === 0}
             >
-              + wood
+              Įdėti malką
             </button>
             {woodCooldown > 0 && (
               <span className="wood-cooldown">{woodCooldown}s</span>
