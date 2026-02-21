@@ -4,12 +4,20 @@ import Bonfire from './Bonfire'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 
-export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave }) {
+export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave, onSearchAgain }) {
   const [messages, setMessages] = useState([])
+  const [leaveConfirm, setLeaveConfirm] = useState(false)
   const channelsRef = useRef([])
   // Always keep a fresh reference so subscription callbacks never use a stale closure
   const onRoomUpdateRef = useRef(onRoomUpdate)
   useEffect(() => { onRoomUpdateRef.current = onRoomUpdate })
+
+  const onSearchAgainRef = useRef(onSearchAgain)
+  useEffect(() => { onSearchAgainRef.current = onSearchAgain })
+
+  const isEnded = appState === 'ended'
+  const isWaiting = appState === 'waiting'
+  const isChatting = appState === 'chatting'
 
   // Load messages when chatting starts
   useEffect(() => {
@@ -40,6 +48,28 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [room?.id])
+
+  // Reset leave confirm after 4 seconds of inactivity
+  useEffect(() => {
+    if (!leaveConfirm) return
+    const t = setTimeout(() => setLeaveConfirm(false), 4000)
+    return () => clearTimeout(t)
+  }, [leaveConfirm])
+
+  // Escape key handler
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== 'Escape') return
+      if (isEnded) { onSearchAgainRef.current(); return }
+      if (isWaiting) { handleLeave(); return }
+      if (isChatting) {
+        if (leaveConfirm) handleLeave()
+        else setLeaveConfirm(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isEnded, isWaiting, isChatting, leaveConfirm])
 
   async function loadMessages() {
     const { data } = await supabase
@@ -89,14 +119,21 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   }
 
   async function handleLeave() {
-    if (room?.id) {
+    if (room?.id && !isEnded) {
       await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
       await supabase.rpc('leave_room', { p_room_id: room.id })
     }
     onLeave()
   }
 
+  function handleLeaveClick() {
+    if (isEnded) { onLeave(); return }
+    if (isWaiting || leaveConfirm) { handleLeave(); return }
+    setLeaveConfirm(true)
+  }
+
   async function handleSend(content) {
+    setLeaveConfirm(false)
     await supabase.from('messages').insert({
       room_id: room.id,
       user_id: userId,
@@ -104,15 +141,16 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     })
   }
 
-  const isEnded = appState === 'ended'
-  const isWaiting = appState === 'waiting'
-  const isChatting = appState === 'chatting'
-
   return (
     <div className="chat-room">
       <div className="chat-header">
         <span className="chat-header-title">laužas</span>
-        <button className="btn-leave" onClick={handleLeave}>išeiti</button>
+        <button
+          className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
+          onClick={handleLeaveClick}
+        >
+          {isChatting && leaveConfirm ? 'Ar tikrai norite išeiti?' : 'išeiti'}
+        </button>
       </div>
 
       {(isChatting || isEnded) && (
@@ -145,7 +183,10 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
           <div className="ended-overlay" style={{ flex: 'none', padding: '1rem', borderTop: '1px solid var(--border)' }}>
             <p className="ended-title">laužas užgeso</p>
             <p className="ended-sub">šiluma blysta, bet ji buvo tikra</p>
-            <button className="btn-primary" onClick={handleLeave}>atgal į šaltį</button>
+            <div className="ended-actions">
+              <button className="btn-primary" onClick={onLeave}>Grįžti į pradžią</button>
+              <button className="btn-primary" onClick={onSearchAgain}>Ieškoti kito laužo</button>
+            </div>
           </div>
         </>
       )}

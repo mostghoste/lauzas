@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function MessageInput({ onSend, disabled }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const textareaRef = useRef(null)
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   async function handleSend() {
     const trimmed = text.trim()
@@ -11,6 +16,7 @@ export default function MessageInput({ onSend, disabled }) {
     try {
       await onSend(trimmed)
       setText('')
+      textareaRef.current?.focus()
     } finally {
       setSending(false)
     }
@@ -26,6 +32,7 @@ export default function MessageInput({ onSend, disabled }) {
   return (
     <div className="message-input-wrapper">
       <textarea
+        ref={textareaRef}
         className="message-input"
         placeholder={disabled ? 'laužas užgeso…' : 'parašyk ką nors…'}
         value={text}

@@ -77,6 +77,11 @@ export default function App() {
     setAppState('idle')
   }
 
+  async function handleSearchAgain() {
+    setRoom(null)
+    await handleFindFire()
+  }
+
   if (appState === 'loading') {
     return (
       <div className="app-center">
@@ -103,6 +108,7 @@ export default function App() {
       onRoomUpdate={handleRoomUpdate}
       onFireOut={handleFireOut}
       onLeave={handleLeave}
+      onSearchAgain={handleSearchAgain}
     />
   )
 }

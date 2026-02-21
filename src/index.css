@@ -170,6 +170,11 @@ body {
   color: var(--fire-3);
 }
 
+.btn-leave-confirm {
+  border-color: var(--fire-2);
+  color: var(--fire-1);
+}
+
 /* ──────────────────────────────
    Bonfire
 ────────────────────────────── */
@@ -351,6 +356,13 @@ body {
   color: var(--text-muted);
   max-width: 260px;
   line-height: 1.7;
+}
+
+.ended-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* ──────────────────────────────

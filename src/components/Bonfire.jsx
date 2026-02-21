@@ -18,6 +18,14 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
   // Sync time from room
   useEffect(() => {
     if (isStatic || !room?.fire_expires_at) return
+
+    // Other user left — extinguish immediately without firing onFireOut
+    if (room?.status === 'ended') {
+      clearInterval(timerRef.current)
+      setTimeLeft(0)
+      return
+    }
+
     const compute = () => Math.max(0, Math.floor((new Date(room.fire_expires_at) - Date.now()) / 1000))
     setTimeLeft(compute())
 
@@ -33,7 +41,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
     }, 1000)
 
     return () => clearInterval(timerRef.current)
-  }, [room?.fire_expires_at, isStatic])
+  }, [room?.fire_expires_at, room?.status, isStatic])
 
   // Cooldown ticker
   useEffect(() => {
