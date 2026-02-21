@@ -16,15 +16,45 @@ export default function App() {
 
   async function initAuth() {
     try {
+      // Restore or create anonymous session
+      let uid
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        setUserId(session.user.id)
-        setAppState('idle')
+        uid = session.user.id
+      } else {
+        const { data, error } = await supabase.auth.signInAnonymously()
+        if (error) throw error
+        uid = data.user.id
+      }
+      setUserId(uid)
+
+      // Check whether this user is already assigned to an open room
+      const { data: existing } = await supabase
+        .from('rooms')
+        .select('*')
+        .in('status', ['waiting', 'active'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const roomData = existing?.[0] ?? null
+
+      if (roomData?.status === 'active') {
+        const fireAlive = roomData.fire_expires_at &&
+          new Date(roomData.fire_expires_at) > new Date()
+        if (fireAlive) {
+          // Restore directly into the ongoing chat
+          setRoom(roomData)
+          setAppState('chatting')
+          return
+        }
+        // Fire already out — treat as a fresh user, fall through to idle
+      } else if (roomData?.status === 'waiting') {
+        // Still searching — restore to the waiting screen
+        setRoom(roomData)
+        setAppState('waiting')
         return
       }
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) throw error
-      setUserId(data.user.id)
+
       setAppState('idle')
     } catch (err) {
       setError(err.message)

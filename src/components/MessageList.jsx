@@ -8,10 +8,11 @@ function formatTime(iso) {
 function getSystemText(content, msgUserId, currentUserId) {
   const isYou = msgUserId === currentUserId
   switch (content) {
-    case 'add_wood': return isYou ? 'Tu įdėjai malką į laužą.' : 'Nepažįstamasis įdėjo malką į laužą.'
-    case 'leave':    return isYou ? 'Tu užgesinai laužą.' : 'Nepažįstamasis užgesino laužą.'
-    case 'fire_out': return 'Neprižiūrėtas laužas užgeso.'
-    default:         return content
+    case 'add_wood':      return isYou ? 'Tu įdėjai malką į laužą.' : 'Nepažįstamasis įdėjo malką į laužą.'
+    case 'leave':         return isYou ? 'Tu užgesinai laužą.' : 'Nepažįstamasis užgesino laužą.'
+    case 'fire_out':      return 'Neprižiūrėtas laužas užgeso.'
+    case 'cancel_search': return 'Nustojai ieškoti kito laužo.'
+    default:              return content
   }
 }
 

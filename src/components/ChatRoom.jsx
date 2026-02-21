@@ -125,6 +125,16 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       }
       await supabase.rpc('leave_room', { p_room_id: room.id })
     }
+    if (isWaiting) {
+      // Replace any stale messages from a previous chat with a single local notice
+      setMessages([{
+        id: 'local-cancel',
+        type: 'system',
+        content: 'cancel_search',
+        user_id: null,
+        created_at: new Date().toISOString(),
+      }])
+    }
     onFireOut() // Always land on ended screen (waiting or chatting)
   }
 
