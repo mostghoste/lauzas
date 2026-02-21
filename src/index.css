@@ -1,10 +1,10 @@
 :root {
-  --bg: #0d0d0d;
-  --surface: #161616;
-  --surface-2: #1e1e1e;
-  --border: #2a2a2a;
-  --text: #e8e0d5;
-  --text-muted: #6b6355;
+  --bg: #141414;
+  --surface: #1c1c1c;
+  --surface-2: #262626;
+  --border: #363636;
+  --text: #ede6db;
+  --text-muted: #9a8e7e;
   --fire-1: #ff8c00;
   --fire-2: #ff4500;
   --fire-3: #cc2200;
@@ -25,8 +25,8 @@ html, body, #root {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Georgia', serif;
-  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  font-size: 17px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -69,6 +69,7 @@ body {
   font-weight: normal;
   letter-spacing: 0.04em;
   color: var(--text);
+  font-family: 'Jersey 15', monospace;
 }
 
 .landing-sub {
@@ -86,12 +87,13 @@ body {
   background: transparent;
   border: 1px solid var(--fire-2);
   color: var(--fire-1);
-  font-family: inherit;
-  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
   padding: 0.75rem 2rem;
   border-radius: 4px;
   cursor: pointer;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   transition: background 0.2s, box-shadow 0.2s;
 }
 
@@ -152,17 +154,18 @@ body {
 }
 
 .chat-header-title {
-  font-size: 0.8rem;
+  font-size: 1rem;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  text-transform: uppercase;
+  font-family: 'Jersey 15', monospace;
 }
 
 .btn-leave {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-family: inherit;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
   font-size: 0.75rem;
   padding: 0.3rem 0.75rem;
   border-radius: 4px;
@@ -285,6 +288,7 @@ body {
   letter-spacing: 0.05em;
   color: var(--fire-1);
   font-variant-numeric: tabular-nums;
+  font-family: 'Jersey 15', monospace;
 }
 
 .bonfire-timer.dying {
@@ -301,7 +305,8 @@ body {
   background: transparent;
   border: 1px solid var(--fire-2);
   color: var(--fire-1);
-  font-family: inherit;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
   font-size: 0.8rem;
   padding: 0.35rem 0.9rem;
   border-radius: 4px;
@@ -355,6 +360,7 @@ body {
 .ended-title {
   font-size: 1.3rem;
   color: var(--text-muted);
+  font-family: 'Jersey 15', monospace;
 }
 
 .ended-sub {
@@ -497,7 +503,8 @@ body {
   background: transparent;
   border: 1px solid var(--fire-2);
   color: var(--fire-1);
-  font-family: inherit;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
   font-size: 0.85rem;
   padding: 0 1rem;
   border-radius: 6px;
