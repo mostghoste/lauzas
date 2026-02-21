@@ -46,6 +46,19 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     setEndedTagline(ENDED_TAGLINES[Math.floor(Math.random() * ENDED_TAGLINES.length)])
   }, [isEnded])
 
+  // While waiting, actively try to join another compatible waiting room every 3s
+  useEffect(() => {
+    if (!isWaiting || !room?.id) return
+    const tryRematch = async () => {
+      const { data: newRoomId } = await supabase.rpc('try_rematch', { p_current_room_id: room.id })
+      if (!newRoomId) return
+      const { data: newRoom } = await supabase.from('rooms').select('*').eq('id', newRoomId).single()
+      if (newRoom) onRoomUpdateRef.current(newRoom)
+    }
+    const interval = setInterval(tryRematch, 3000)
+    return () => clearInterval(interval)
+  }, [isWaiting, room?.id])
+
   // Poll online count while waiting
   useEffect(() => {
     if (!isWaiting) return

@@ -174,6 +174,71 @@ BEGIN
 END;
 $$;
 
+-- try_rematch(): called by waiting clients to actively join another waiting room
+-- If a compatible room is found, the caller's old waiting room is ended and the
+-- new active room id is returned. Returns NULL if no match is available yet.
+CREATE OR REPLACE FUNCTION try_rematch(p_current_room_id uuid)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid      uuid := auth.uid();
+  v_new_room uuid;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Verify caller owns this waiting room and it hasn't expired
+  IF NOT EXISTS (
+    SELECT 1 FROM rooms
+    WHERE id = p_current_room_id
+      AND user1_id = v_uid
+      AND status = 'waiting'
+      AND waiting_expires_at > now()
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  -- Try to join a different compatible waiting room
+  UPDATE rooms
+  SET user2_id        = v_uid,
+      status          = 'active',
+      fire_expires_at = now() + interval '30 seconds'
+  WHERE id = (
+    SELECT id FROM rooms
+    WHERE status             = 'waiting'
+      AND user1_id          != v_uid
+      AND user2_id          IS NULL
+      AND waiting_expires_at > now()
+      AND id                != p_current_room_id
+      AND user1_id NOT IN (
+        SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
+        FROM rooms
+        WHERE status = 'ended'
+          AND created_at > now() - interval '1 minute'
+          AND (user1_id = v_uid OR user2_id = v_uid)
+          AND user1_id IS NOT NULL
+          AND user2_id IS NOT NULL
+      )
+    ORDER BY created_at ASC
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+  )
+  RETURNING id INTO v_new_room;
+
+  IF v_new_room IS NOT NULL THEN
+    -- Abandon the old waiting room
+    UPDATE rooms SET status = 'ended' WHERE id = p_current_room_id;
+    RETURN v_new_room;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
 -- add_wood(): extend fire by 1 minute (capped at 10 minutes total)
 CREATE OR REPLACE FUNCTION add_wood(p_room_id uuid)
 RETURNS void
