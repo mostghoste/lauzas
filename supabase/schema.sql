@@ -206,6 +206,21 @@ BEGIN
 END;
 $$;
 
+-- get_online_count(): counts distinct users currently in a waiting or active room
+-- SECURITY DEFINER so it can count across all rooms, not just the caller's own
+CREATE OR REPLACE FUNCTION get_online_count()
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COUNT(DISTINCT uid)::integer FROM (
+    SELECT user1_id AS uid FROM rooms WHERE status IN ('waiting', 'active')
+    UNION ALL
+    SELECT user2_id AS uid FROM rooms WHERE status IN ('waiting', 'active') AND user2_id IS NOT NULL
+  ) u;
+$$;
+
 -- insert_system_message(): inserts a system event into the chat (bypasses RLS fire check)
 -- content values: 'add_wood' | 'leave' | 'fire_out'
 -- fire_out uses a partial unique index so only the first caller's insert lands

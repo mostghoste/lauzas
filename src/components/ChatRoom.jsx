@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
+
+function sielaForm(n) {
+  const last = n % 10
+  const lastTwo = n % 100
+  if (lastTwo >= 11 && lastTwo <= 19) return 'sielų'
+  if (last === 1) return 'siela'
+  if (last === 0) return 'sielų'
+  return 'sielos'
+}
 import Bonfire from './Bonfire'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
@@ -7,6 +16,7 @@ import MessageInput from './MessageInput'
 export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave, onSearchAgain }) {
   const [messages, setMessages] = useState([])
   const [leaveConfirm, setLeaveConfirm] = useState(false)
+  const [onlineCount, setOnlineCount] = useState(null)
   const channelsRef = useRef([])
   // Always keep a fresh reference so subscription callbacks never use a stale closure
   const onRoomUpdateRef = useRef(onRoomUpdate)
@@ -18,6 +28,18 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const isEnded = appState === 'ended'
   const isWaiting = appState === 'waiting'
   const isChatting = appState === 'chatting'
+
+  // Poll online count while waiting
+  useEffect(() => {
+    if (!isWaiting) return
+    const fetch = async () => {
+      const { data } = await supabase.rpc('get_online_count')
+      if (data !== null) setOnlineCount(data)
+    }
+    fetch()
+    const interval = setInterval(fetch, 10000)
+    return () => clearInterval(interval)
+  }, [isWaiting])
 
   // Load messages when chatting starts
   useEffect(() => {
@@ -179,9 +201,13 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       {isWaiting && (
         <div className="waiting-overlay">
           <span>laukiama nepažįstamojo<span className="searching-dots" /></span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            pasidalink — kažkas tave suras
-          </span>
+          {onlineCount !== null && (
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              {onlineCount === 0
+                ? 'Miškas šiuo metu tuščias'
+                : `Miške šiuo metu klaidžioja ${onlineCount} ${sielaForm(onlineCount)}`}
+            </span>
+          )}
         </div>
       )}
 

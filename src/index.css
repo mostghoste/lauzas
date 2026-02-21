@@ -117,6 +117,12 @@ body {
   75%  { content: '...'; }
 }
 
+.online-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .error-msg {
   color: var(--fire-3);
   font-size: 0.85rem;
