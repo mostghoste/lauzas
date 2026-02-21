@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function MessageInput({ onSend, disabled }) {
   const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
+  const sendingRef = useRef(false)
   const textareaRef = useRef(null)
 
   useEffect(() => {
@@ -11,15 +11,13 @@ export default function MessageInput({ onSend, disabled }) {
 
   async function handleSend() {
     const trimmed = text.trim()
-    if (!trimmed || sending || disabled) return
-    setSending(true)
+    if (!trimmed || sendingRef.current || disabled) return
+    sendingRef.current = true
+    setText('')
     try {
       await onSend(trimmed)
-      setText('')
     } finally {
-      setSending(false)
-      // Defer focus until React re-renders the textarea as enabled
-      setTimeout(() => textareaRef.current?.focus(), 0)
+      sendingRef.current = false
     }
   }
 
@@ -39,13 +37,13 @@ export default function MessageInput({ onSend, disabled }) {
         value={text}
         onChange={e => setText(e.target.value.slice(0, 500))}
         onKeyDown={handleKeyDown}
-        disabled={disabled || sending}
+        disabled={disabled}
         rows={1}
       />
       <button
         className="btn-send"
         onClick={handleSend}
-        disabled={!text.trim() || disabled || sending}
+        disabled={!text.trim() || disabled}
       >
         siųsti
       </button>
