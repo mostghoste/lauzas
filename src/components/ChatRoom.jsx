@@ -119,16 +119,22 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   }
 
   async function handleLeave() {
-    if (room?.id && !isEnded) {
+    if (isChatting && room?.id) {
       await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
       await supabase.rpc('leave_room', { p_room_id: room.id })
+      onFireOut() // Show ended screen so user can search again
+    } else {
+      if (isWaiting && room?.id) {
+        await supabase.rpc('leave_room', { p_room_id: room.id })
+      }
+      onLeave()
     }
-    onLeave()
   }
 
   function handleLeaveClick() {
     if (isEnded) { onLeave(); return }
-    if (isWaiting || leaveConfirm) { handleLeave(); return }
+    if (isWaiting) { handleLeave(); return }
+    if (leaveConfirm) { handleLeave(); return }
     setLeaveConfirm(true)
   }
 

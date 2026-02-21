@@ -16,9 +16,10 @@ export default function MessageInput({ onSend, disabled }) {
     try {
       await onSend(trimmed)
       setText('')
-      textareaRef.current?.focus()
     } finally {
       setSending(false)
+      // Defer focus until React re-renders the textarea as enabled
+      setTimeout(() => textareaRef.current?.focus(), 0)
     }
   }
 
