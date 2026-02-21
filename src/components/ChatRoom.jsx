@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 
+const ENDED_TAGLINES = [
+  'Šiluma išblėso, bet ji buvo tikra.',
+  'Iš riaumojančios ugnies liko tik žarijos.',
+  'Staiga miškas nutyla. Ar jautiesi jaukiai būdamas vienas?',
+  'Pelenų krūva skaudžiai primena, kad viskas yra laikina.',
+  'Susidūrusios sielos vėl išeina savais keliais.',
+  'Stovyklavietėje įsivyrauja tyla. Metas tęsti kelionę.',
+  'Ugnis iškosėja paskutinį dūmų kamuolį. Atėjo paskutinioji.'
+]
+
 function sielaForm(n) {
   const last = n % 10
   const lastTwo = n % 100
@@ -17,6 +27,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const [messages, setMessages] = useState([])
   const [leaveConfirm, setLeaveConfirm] = useState(false)
   const [onlineCount, setOnlineCount] = useState(null)
+  const [endedTagline, setEndedTagline] = useState('')
   const channelsRef = useRef([])
   // Always keep a fresh reference so subscription callbacks never use a stale closure
   const onRoomUpdateRef = useRef(onRoomUpdate)
@@ -28,6 +39,12 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const isEnded = appState === 'ended'
   const isWaiting = appState === 'waiting'
   const isChatting = appState === 'chatting'
+
+  // Pick a fresh tagline each time the chat ends
+  useEffect(() => {
+    if (!isEnded) return
+    setEndedTagline(ENDED_TAGLINES[Math.floor(Math.random() * ENDED_TAGLINES.length)])
+  }, [isEnded])
 
   // Poll online count while waiting
   useEffect(() => {
@@ -223,7 +240,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
           <MessageList messages={messages} userId={userId} />
           <div className="ended-overlay" style={{ flex: 'none', padding: '1rem', borderTop: '1px solid var(--border)' }}>
             <p className="ended-title">laužas užgeso</p>
-            <p className="ended-sub">šiluma blysta, bet ji buvo tikra</p>
+            <p className="ended-sub">{endedTagline}</p>
             <div className="ended-actions">
               <button className="btn-primary" onClick={onLeave}>Grįžti į pradžią</button>
               <button className="btn-primary" onClick={onSearchAgain}>Ieškoti kito laužo</button>
