@@ -220,7 +220,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   }
 
   async function handleSend(content) {
-    setLeaveConfirm(false)
+    if (leaveConfirm) setLeaveConfirm(false)
     await supabase.from('messages').insert({
       room_id: room.id,
       user_id: userId,
