@@ -36,6 +36,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
       if (t === 0) {
         clearInterval(timerRef.current)
         supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'fire_out' })
+        supabase.rpc('leave_room', { p_room_id: room.id })
         onFireOut?.()
       }
     }, 1000)

@@ -16,9 +16,10 @@ CREATE TABLE IF NOT EXISTS rooms (
   created_at      timestamptz NOT NULL DEFAULT now(),
   status          text NOT NULL DEFAULT 'waiting'
                     CHECK (status IN ('waiting', 'active', 'ended')),
-  fire_expires_at timestamptz,
-  user1_id        uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  user2_id        uuid REFERENCES auth.users(id) ON DELETE SET NULL
+  fire_expires_at    timestamptz,
+  waiting_expires_at timestamptz,
+  user1_id           uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user2_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -118,11 +119,14 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- 1. Check if caller already has an open room
+  -- 1. Check if caller already has an open, non-expired room
   SELECT id INTO v_room_id
   FROM rooms
   WHERE (user1_id = v_uid OR user2_id = v_uid)
-    AND status IN ('waiting', 'active')
+    AND (
+      status = 'active'
+      OR (status = 'waiting' AND waiting_expires_at > now())
+    )
   ORDER BY created_at DESC
   LIMIT 1;
 
@@ -137,9 +141,10 @@ BEGIN
       fire_expires_at = now() + interval '3 minutes'
   WHERE id = (
     SELECT id FROM rooms
-    WHERE status   = 'waiting'
-      AND user1_id != v_uid
-      AND user2_id IS NULL
+    WHERE status             = 'waiting'
+      AND user1_id          != v_uid
+      AND user2_id          IS NULL
+      AND waiting_expires_at > now()
     ORDER BY created_at ASC
     LIMIT 1
     FOR UPDATE SKIP LOCKED
@@ -151,8 +156,8 @@ BEGIN
   END IF;
 
   -- 3. No room found — create a new waiting room (timer starts when matched)
-  INSERT INTO rooms (user1_id, status)
-  VALUES (v_uid, 'waiting')
+  INSERT INTO rooms (user1_id, status, waiting_expires_at)
+  VALUES (v_uid, 'waiting', now() + interval '1 minute')
   RETURNING id INTO v_room_id;
 
   RETURN v_room_id;
@@ -250,6 +255,33 @@ BEGIN
   ON CONFLICT (room_id) WHERE content = 'fire_out' DO NOTHING;
 END;
 $$;
+
+-- ──────────────────────────────
+-- Scheduled cleanup (pg_cron)
+-- ──────────────────────────────
+-- Requires pg_cron extension: Supabase Dashboard > Database > Extensions > pg_cron
+
+SELECT cron.schedule(
+  'expire-active-rooms',
+  '* * * * *',
+  $$
+    UPDATE rooms
+    SET status = 'ended'
+    WHERE status = 'active'
+      AND fire_expires_at < now();
+  $$
+);
+
+SELECT cron.schedule(
+  'expire-waiting-rooms',
+  '* * * * *',
+  $$
+    UPDATE rooms
+    SET status = 'ended'
+    WHERE status = 'waiting'
+      AND waiting_expires_at < now();
+  $$
+);
 
 -- ──────────────────────────────
 -- Realtime

@@ -11,8 +11,9 @@ function getSystemText(content, msgUserId, currentUserId) {
     case 'add_wood':      return isYou ? 'Tu įdėjai malką į laužą.' : 'Nepažįstamasis įdėjo malką į laužą.'
     case 'leave':         return isYou ? 'Tu užgesinai laužą.' : 'Nepažįstamasis užgesino laužą.'
     case 'fire_out':      return 'Neprižiūrėtas laužas užgeso.'
-    case 'cancel_search': return 'Nustojai ieškoti kito laužo.'
-    default:              return content
+    case 'cancel_search':   return 'Nustojai ieškoti kito laužo.'
+    case 'waiting_timeout': return 'Niekas neatėjo. Laužas nebuvo užkurtas.'
+    default:                return content
   }
 }
 

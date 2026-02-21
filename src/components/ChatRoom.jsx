@@ -88,6 +88,15 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     return () => window.removeEventListener('beforeunload', handler)
   }, [room?.id])
 
+  // Waiting room timeout — fire when waiting_expires_at passes
+  useEffect(() => {
+    if (!isWaiting || !room?.waiting_expires_at) return
+    const msLeft = new Date(room.waiting_expires_at) - Date.now()
+    if (msLeft <= 0) { handleWaitingTimeout(); return }
+    const t = setTimeout(handleWaitingTimeout, msLeft)
+    return () => clearTimeout(t)
+  }, [isWaiting, room?.waiting_expires_at])
+
   // Reset leave confirm after 4 seconds of inactivity
   useEffect(() => {
     if (!leaveConfirm) return
@@ -155,6 +164,18 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   function teardownSubscriptions() {
     channelsRef.current.forEach(ch => supabase.removeChannel(ch))
     channelsRef.current = []
+  }
+
+  async function handleWaitingTimeout() {
+    if (room?.id) await supabase.rpc('leave_room', { p_room_id: room.id })
+    setMessages([{
+      id: 'local-timeout',
+      type: 'system',
+      content: 'waiting_timeout',
+      user_id: null,
+      created_at: new Date().toISOString(),
+    }])
+    onFireOut()
   }
 
   async function handleLeave() {

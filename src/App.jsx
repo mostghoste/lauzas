@@ -49,10 +49,15 @@ export default function App() {
         }
         // Fire already out — treat as a fresh user, fall through to idle
       } else if (roomData?.status === 'waiting') {
-        // Still searching — restore to the waiting screen
-        setRoom(roomData)
-        setAppState('waiting')
-        return
+        const waitingAlive = roomData.waiting_expires_at &&
+          new Date(roomData.waiting_expires_at) > new Date()
+        if (waitingAlive) {
+          setRoom(roomData)
+          setAppState('waiting')
+          return
+        }
+        // Waiting period expired — clean up and go to idle
+        await supabase.rpc('leave_room', { p_room_id: roomData.id })
       }
 
       setAppState('idle')
