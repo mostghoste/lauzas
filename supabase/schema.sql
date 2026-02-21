@@ -124,7 +124,7 @@ BEGIN
   FROM rooms
   WHERE (user1_id = v_uid OR user2_id = v_uid)
     AND (
-      status = 'active'
+      (status = 'active' AND fire_expires_at > now())
       OR (status = 'waiting' AND waiting_expires_at > now())
     )
   ORDER BY created_at DESC
@@ -138,7 +138,7 @@ BEGIN
   UPDATE rooms
   SET user2_id        = v_uid,
       status          = 'active',
-      fire_expires_at = now() + interval '3 minutes'
+      fire_expires_at = now() + interval '30 seconds'
   WHERE id = (
     SELECT id FROM rooms
     WHERE status             = 'waiting'
@@ -180,7 +180,7 @@ BEGIN
 
   UPDATE rooms
   SET fire_expires_at = LEAST(
-    GREATEST(fire_expires_at, now()) + interval '1 minute',
+    GREATEST(fire_expires_at, now()) + interval '30 seconds',
     now() + interval '10 minutes'
   )
   WHERE id = p_room_id

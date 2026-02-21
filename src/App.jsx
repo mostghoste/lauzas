@@ -42,12 +42,12 @@ export default function App() {
         const fireAlive = roomData.fire_expires_at &&
           new Date(roomData.fire_expires_at) > new Date()
         if (fireAlive) {
-          // Restore directly into the ongoing chat
           setRoom(roomData)
           setAppState('chatting')
           return
         }
-        // Fire already out — treat as a fresh user, fall through to idle
+        // Fire already out — clean up and fall through to idle
+        await supabase.rpc('leave_room', { p_room_id: roomData.id })
       } else if (roomData?.status === 'waiting') {
         const waitingAlive = roomData.waiting_expires_at &&
           new Date(roomData.waiting_expires_at) > new Date()

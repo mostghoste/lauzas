@@ -9,7 +9,7 @@ function formatTime(seconds) {
 }
 
 export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: staticScale, timeLeft: staticTime }) {
-  const [timeLeft, setTimeLeft] = useState(staticTime ?? 180)
+  const [timeLeft, setTimeLeft] = useState(staticTime ?? 30)
   const [woodCooldown, setWoodCooldown] = useState(0)
   const [addingWood, setAddingWood] = useState(false)
   const timerRef = useRef(null)
@@ -72,7 +72,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
   }
 
   const effectiveTimeLeft = isStatic ? (staticTime ?? 180) : timeLeft
-  const fireScale = isStatic ? (staticScale ?? 1) : Math.max(0.2, Math.min(1, effectiveTimeLeft / 180))
+  const fireScale = isStatic ? (staticScale ?? 1) : Math.max(0.2, Math.min(1, effectiveTimeLeft / 30))
   const dying = effectiveTimeLeft < 30 && !isStatic
 
   return (
