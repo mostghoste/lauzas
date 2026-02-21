@@ -135,6 +135,7 @@ BEGIN
   END IF;
 
   -- 2. Try to join a waiting room from another user; start the timer now
+  --    Exclude users we have chatted with in the last 5 minutes
   UPDATE rooms
   SET user2_id        = v_uid,
       status          = 'active',
@@ -145,6 +146,15 @@ BEGIN
       AND user1_id          != v_uid
       AND user2_id          IS NULL
       AND waiting_expires_at > now()
+      AND user1_id NOT IN (
+        SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
+        FROM rooms
+        WHERE status = 'ended'
+          AND created_at > now() - interval '1 minute'
+          AND (user1_id = v_uid OR user2_id = v_uid)
+          AND user1_id IS NOT NULL
+          AND user2_id IS NOT NULL
+      )
     ORDER BY created_at ASC
     LIMIT 1
     FOR UPDATE SKIP LOCKED
