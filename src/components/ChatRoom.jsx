@@ -285,10 +285,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
       {isChatting && (
         <>
-          <MessageList messages={messages} userId={userId} />
-          {strangerTyping && (
-            <div className="typing-indicator">Nepažįstamasis kažką rašo…</div>
-          )}
+          <MessageList messages={messages} userId={userId} strangerTyping={strangerTyping} />
           <MessageInput onSend={handleSend} onTyping={handleTyping} disabled={false} />
         </>
       )}

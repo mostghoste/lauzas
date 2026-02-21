@@ -17,14 +17,14 @@ function getSystemText(content, msgUserId, currentUserId) {
   }
 }
 
-export default function MessageList({ messages, userId }) {
+export default function MessageList({ messages, userId, strangerTyping }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, strangerTyping])
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && !strangerTyping) {
     return (
       <div className="message-list" style={{ alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         pasveikink savo nepažįstamąjį
@@ -50,6 +50,13 @@ export default function MessageList({ messages, userId }) {
           </div>
         )
       })}
+      {strangerTyping && (
+        <div className="message-row stranger">
+          <div className="message-bubble typing-dots">
+            <span /><span /><span />
+          </div>
+        </div>
+      )}
       <div ref={bottomRef} />
     </div>
   )
