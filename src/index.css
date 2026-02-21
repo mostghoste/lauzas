@@ -456,6 +456,17 @@ body {
 }
 
 /* ──────────────────────────────
+   Typing indicator
+────────────────────────────── */
+.typing-indicator {
+  padding: 0.25rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+/* ──────────────────────────────
    Message Input
 ────────────────────────────── */
 .message-input-wrapper {

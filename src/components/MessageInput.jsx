@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-export default function MessageInput({ onSend, disabled }) {
+export default function MessageInput({ onSend, onTyping, disabled }) {
   const [text, setText] = useState('')
   const sendingRef = useRef(false)
   const textareaRef = useRef(null)
@@ -35,7 +35,7 @@ export default function MessageInput({ onSend, disabled }) {
         className="message-input"
         placeholder={disabled ? 'laužas užgeso…' : 'parašyk ką nors…'}
         value={text}
-        onChange={e => setText(e.target.value.slice(0, 500))}
+        onChange={e => { setText(e.target.value.slice(0, 500)); onTyping?.() }}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={1}

@@ -29,7 +29,11 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const [leaveConfirm, setLeaveConfirm] = useState(false)
   const [onlineCount, setOnlineCount] = useState(null)
   const [endedTagline, setEndedTagline] = useState('')
+  const [strangerTyping, setStrangerTyping] = useState(false)
   const channelsRef = useRef([])
+  const roomChannelRef = useRef(null)
+  const typingTimeoutRef = useRef(null)
+  const lastTypingSentRef = useRef(0)
   // Always keep a fresh reference so subscription callbacks never use a stale closure
   const onRoomUpdateRef = useRef(onRoomUpdate)
   useEffect(() => { onRoomUpdateRef.current = onRoomUpdate })
@@ -155,7 +159,14 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       }, payload => {
         onRoomUpdateRef.current(payload.new)
       })
+      .on('broadcast', { event: 'typing' }, () => {
+        setStrangerTyping(true)
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = setTimeout(() => setStrangerTyping(false), 3000)
+      })
       .subscribe()
+
+    roomChannelRef.current = roomChannel
 
     const msgsChannel = supabase
       .channel(`msgs:${roomId}`)
@@ -169,6 +180,10 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
           if (prev.find(m => m.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
+        if (payload.new.user_id !== userId) {
+          setStrangerTyping(false)
+          clearTimeout(typingTimeoutRef.current)
+        }
       })
       .subscribe()
 
@@ -178,6 +193,14 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   function teardownSubscriptions() {
     channelsRef.current.forEach(ch => supabase.removeChannel(ch))
     channelsRef.current = []
+    roomChannelRef.current = null
+  }
+
+  function handleTyping() {
+    const now = Date.now()
+    if (now - lastTypingSentRef.current < 2000) return
+    lastTypingSentRef.current = now
+    roomChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: {} })
   }
 
   async function handleWaitingTimeout() {
@@ -263,7 +286,10 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       {isChatting && (
         <>
           <MessageList messages={messages} userId={userId} />
-          <MessageInput onSend={handleSend} disabled={false} />
+          {strangerTyping && (
+            <div className="typing-indicator">Nepažįstamasis kažką rašo…</div>
+          )}
+          <MessageInput onSend={handleSend} onTyping={handleTyping} disabled={false} />
         </>
       )}
 
