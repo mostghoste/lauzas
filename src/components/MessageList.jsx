@@ -15,7 +15,7 @@ export default function MessageList({ messages, userId }) {
   if (messages.length === 0) {
     return (
       <div className="message-list" style={{ alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        say hello to your stranger
+        pasveikink savo nepažįstamąjį
       </div>
     )
   }

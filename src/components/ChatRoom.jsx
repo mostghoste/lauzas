@@ -7,6 +7,9 @@ import MessageInput from './MessageInput'
 export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave }) {
   const [messages, setMessages] = useState([])
   const channelsRef = useRef([])
+  // Always keep a fresh reference so subscription callbacks never use a stale closure
+  const onRoomUpdateRef = useRef(onRoomUpdate)
+  useEffect(() => { onRoomUpdateRef.current = onRoomUpdate })
 
   // Load messages when chatting starts
   useEffect(() => {
@@ -14,10 +17,17 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     loadMessages()
   }, [appState, room?.id])
 
-  // Set up realtime subscriptions whenever room is available
+  // Set up realtime subscriptions whenever room is available.
+  // After subscribing, re-fetch room state to catch updates that arrived
+  // between the initial fetch in App.jsx and the subscription being ready.
   useEffect(() => {
     if (!room?.id) return
     setupSubscriptions(room.id)
+    supabase.from('rooms').select('*').eq('id', room.id).single().then(({ data }) => {
+      if (data && data.status !== room.status) {
+        onRoomUpdateRef.current(data)
+      }
+    })
     return () => teardownSubscriptions()
   }, [room?.id])
 
@@ -51,7 +61,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
         table: 'rooms',
         filter: `id=eq.${roomId}`,
       }, payload => {
-        onRoomUpdate(payload.new)
+        onRoomUpdateRef.current(payload.new)
       })
       .subscribe()
 
@@ -101,7 +111,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     <div className="chat-room">
       <div className="chat-header">
         <span className="chat-header-title">laužas</span>
-        <button className="btn-leave" onClick={handleLeave}>leave</button>
+        <button className="btn-leave" onClick={handleLeave}>išeiti</button>
       </div>
 
       {(isChatting || isEnded) && (
@@ -113,15 +123,12 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       )}
 
       {isWaiting && (
-        <>
-          <Bonfire room={room} userId={userId} onFireOut={onFireOut} />
-          <div className="waiting-overlay">
-            <span>waiting for a stranger<span className="searching-dots" /></span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              share this vibe — someone will find you
-            </span>
-          </div>
-        </>
+        <div className="waiting-overlay">
+          <span>laukiama nepažįstamojo<span className="searching-dots" /></span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            pasidalink — kažkas tave suras
+          </span>
+        </div>
       )}
 
       {isChatting && (
@@ -135,9 +142,9 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
         <>
           <MessageList messages={messages} userId={userId} />
           <div className="ended-overlay" style={{ flex: 'none', padding: '1rem', borderTop: '1px solid var(--border)' }}>
-            <p className="ended-title">the fire is out</p>
-            <p className="ended-sub">the warmth fades, but it was real</p>
-            <button className="btn-primary" onClick={handleLeave}>back to the cold</button>
+            <p className="ended-title">laužas užgeso</p>
+            <p className="ended-sub">šiluma blysta, bet ji buvo tikra</p>
+            <button className="btn-primary" onClick={handleLeave}>atgal į šaltį</button>
           </div>
         </>
       )}

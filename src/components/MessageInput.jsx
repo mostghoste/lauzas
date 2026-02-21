@@ -27,7 +27,7 @@ export default function MessageInput({ onSend, disabled }) {
     <div className="message-input-wrapper">
       <textarea
         className="message-input"
-        placeholder={disabled ? 'the fire has died…' : 'say something…'}
+        placeholder={disabled ? 'laužas užgeso…' : 'parašyk ką nors…'}
         value={text}
         onChange={e => setText(e.target.value.slice(0, 500))}
         onKeyDown={handleKeyDown}
@@ -39,7 +39,7 @@ export default function MessageInput({ onSend, disabled }) {
         onClick={handleSend}
         disabled={!text.trim() || disabled || sending}
       >
-        send
+        siųsti
       </button>
     </div>
   )

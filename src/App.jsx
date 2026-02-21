@@ -80,7 +80,7 @@ export default function App() {
   if (appState === 'loading') {
     return (
       <div className="app-center">
-        <div className="loading-text">kindling the fire…</div>
+        <div className="loading-text">kuriamas laužas…</div>
       </div>
     )
   }
