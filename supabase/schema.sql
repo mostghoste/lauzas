@@ -149,10 +149,8 @@ BEGIN
       AND user1_id NOT IN (
         SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
         FROM rooms
-        WHERE status = 'ended'
-          AND created_at > now() - interval '1 minute'
+        WHERE created_at > now() - interval '1 minute'
           AND (user1_id = v_uid OR user2_id = v_uid)
-          AND user1_id IS NOT NULL
           AND user2_id IS NOT NULL
       )
     ORDER BY created_at ASC
@@ -217,10 +215,8 @@ BEGIN
       AND user1_id NOT IN (
         SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
         FROM rooms
-        WHERE status = 'ended'
-          AND created_at > now() - interval '1 minute'
+        WHERE created_at > now() - interval '1 minute'
           AND (user1_id = v_uid OR user2_id = v_uid)
-          AND user1_id IS NOT NULL
           AND user2_id IS NOT NULL
       )
     ORDER BY created_at ASC

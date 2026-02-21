@@ -236,7 +236,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
             className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
             onClick={handleLeaveClick}
           >
-            {isChatting && leaveConfirm ? 'Ar tikrai norite išeiti?' : 'išeiti'}
+            {isChatting && leaveConfirm ? 'Ar tikrai nori išeiti?' : 'išeiti'}
           </button>
         )}
       </div>
