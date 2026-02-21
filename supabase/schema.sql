@@ -149,7 +149,7 @@ BEGIN
       AND user1_id NOT IN (
         SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
         FROM rooms
-        WHERE created_at > now() - interval '1 minute'
+        WHERE COALESCE(fire_expires_at, created_at) > now() - interval '1 minute'
           AND (user1_id = v_uid OR user2_id = v_uid)
           AND user2_id IS NOT NULL
       )
@@ -215,7 +215,7 @@ BEGIN
       AND user1_id NOT IN (
         SELECT CASE WHEN user1_id = v_uid THEN user2_id ELSE user1_id END
         FROM rooms
-        WHERE created_at > now() - interval '1 minute'
+        WHERE COALESCE(fire_expires_at, created_at) > now() - interval '1 minute'
           AND (user1_id = v_uid OR user2_id = v_uid)
           AND user2_id IS NOT NULL
       )
