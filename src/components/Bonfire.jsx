@@ -27,6 +27,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
       setTimeLeft(t)
       if (t === 0) {
         clearInterval(timerRef.current)
+        supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'fire_out' })
         onFireOut?.()
       }
     }, 1000)
@@ -54,6 +55,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
     setAddingWood(true)
     try {
       await supabase.rpc('add_wood', { p_room_id: room.id })
+      await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'add_wood' })
       setWoodCooldown(15)
     } finally {
       setAddingWood(false)

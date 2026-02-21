@@ -5,6 +5,16 @@ function formatTime(iso) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function getSystemText(content, msgUserId, currentUserId) {
+  const isYou = msgUserId === currentUserId
+  switch (content) {
+    case 'add_wood': return isYou ? 'Tu įdėjai malką į laužą.' : 'Nepažįstamasis įdėjo malką į laužą.'
+    case 'leave':    return isYou ? 'Tu užgesinai laužą.' : 'Nepažįstamasis užgesino laužą.'
+    case 'fire_out': return 'Neprižiūrėtas laužas užgeso.'
+    default:         return content
+  }
+}
+
 export default function MessageList({ messages, userId }) {
   const bottomRef = useRef(null)
 
@@ -23,6 +33,13 @@ export default function MessageList({ messages, userId }) {
   return (
     <div className="message-list">
       {messages.map(msg => {
+        if (msg.type === 'system') {
+          return (
+            <div key={msg.id} className="message-row system">
+              <span className="system-message">{getSystemText(msg.content, msg.user_id, userId)}</span>
+            </div>
+          )
+        }
         const isYou = msg.user_id === userId
         return (
           <div key={msg.id} className={`message-row ${isYou ? 'you' : 'stranger'}`}>

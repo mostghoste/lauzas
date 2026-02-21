@@ -90,6 +90,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   async function handleLeave() {
     if (room?.id) {
+      await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
       await supabase.rpc('leave_room', { p_room_id: room.id })
     }
     onLeave()

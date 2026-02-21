@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS messages (
   room_id    uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   content    text NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
+  type       text NOT NULL DEFAULT 'user' CHECK (type IN ('user', 'system')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -38,6 +39,10 @@ CREATE INDEX IF NOT EXISTS idx_rooms_waiting
 
 CREATE INDEX IF NOT EXISTS idx_messages_room
   ON messages(room_id, created_at);
+
+-- Prevents both users inserting a duplicate fire_out event for the same room
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_fire_out_per_room
+  ON messages(room_id) WHERE content = 'fire_out';
 
 -- ──────────────────────────────
 -- Row-Level Security
@@ -79,10 +84,12 @@ CREATE POLICY messages_select ON messages
   );
 
 -- messages: INSERT (must own the message AND room must be active with live fire)
+-- System messages bypass this via the insert_system_message RPC (SECURITY DEFINER)
 DROP POLICY IF EXISTS messages_insert ON messages;
 CREATE POLICY messages_insert ON messages
   FOR INSERT WITH CHECK (
     auth.uid() = user_id
+    AND type = 'user'
     AND EXISTS (
       SELECT 1 FROM rooms r
       WHERE r.id = messages.room_id
@@ -196,6 +203,36 @@ BEGIN
   WHERE id = p_room_id
     AND (user1_id = v_uid OR user2_id = v_uid)
     AND status IN ('waiting', 'active');
+END;
+$$;
+
+-- insert_system_message(): inserts a system event into the chat (bypasses RLS fire check)
+-- content values: 'add_wood' | 'leave' | 'fire_out'
+-- fire_out uses a partial unique index so only the first caller's insert lands
+CREATE OR REPLACE FUNCTION insert_system_message(p_room_id uuid, p_content text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM rooms
+    WHERE id = p_room_id
+      AND (user1_id = v_uid OR user2_id = v_uid)
+  ) THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  INSERT INTO messages (room_id, user_id, content, type)
+  VALUES (p_room_id, v_uid, p_content, 'system')
+  ON CONFLICT (room_id) WHERE content = 'fire_out' DO NOTHING;
 END;
 $$;
 

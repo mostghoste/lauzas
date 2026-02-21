@@ -422,6 +422,20 @@ body {
   padding: 0 0.25rem;
 }
 
+.message-row.system {
+  align-self: center;
+  align-items: center;
+  max-width: 90%;
+}
+
+.system-message {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 0.15rem 0;
+}
+
 /* ──────────────────────────────
    Message Input
 ────────────────────────────── */
