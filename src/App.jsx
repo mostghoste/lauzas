@@ -78,8 +78,30 @@ export default function App() {
   }
 
   async function handleSearchAgain() {
-    setRoom(null)
-    await handleFindFire()
+    // Don't set appState to 'searching' — that would flash the Landing screen.
+    // Stay in the current state while the RPC runs, then jump straight to waiting/chatting.
+    setError(null)
+    try {
+      const { data: roomId, error: rpcError } = await supabase.rpc('find_or_create_room')
+      if (rpcError) throw rpcError
+
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', roomId)
+        .single()
+      if (roomError) throw roomError
+
+      setRoom(roomData)
+      if (roomData.status === 'active') {
+        setAppState('chatting')
+      } else {
+        setAppState('waiting')
+      }
+    } catch (err) {
+      setError(err.message)
+      setAppState('idle')
+    }
   }
 
   if (appState === 'loading') {

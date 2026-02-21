@@ -119,16 +119,13 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   }
 
   async function handleLeave() {
-    if (isChatting && room?.id) {
-      await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
-      await supabase.rpc('leave_room', { p_room_id: room.id })
-      onFireOut() // Show ended screen so user can search again
-    } else {
-      if (isWaiting && room?.id) {
-        await supabase.rpc('leave_room', { p_room_id: room.id })
+    if (room?.id && !isEnded) {
+      if (isChatting) {
+        await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
       }
-      onLeave()
+      await supabase.rpc('leave_room', { p_room_id: room.id })
     }
+    onFireOut() // Always land on ended screen (waiting or chatting)
   }
 
   function handleLeaveClick() {
@@ -151,15 +148,17 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     <div className="chat-room">
       <div className="chat-header">
         <span className="chat-header-title">laužas</span>
-        <button
-          className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
-          onClick={handleLeaveClick}
-        >
-          {isChatting && leaveConfirm ? 'Ar tikrai norite išeiti?' : 'išeiti'}
-        </button>
+        {!isEnded && (
+          <button
+            className={`btn-leave${leaveConfirm ? ' btn-leave-confirm' : ''}`}
+            onClick={handleLeaveClick}
+          >
+            {isChatting && leaveConfirm ? 'Ar tikrai norite išeiti?' : 'išeiti'}
+          </button>
+        )}
       </div>
 
-      {(isChatting || isEnded) && (
+      {(isChatting || (isEnded && room?.fire_expires_at)) && (
         <Bonfire
           room={room}
           userId={userId}
