@@ -163,7 +163,7 @@ BEGIN
 
   -- 3. No room found — create a new waiting room (timer starts when matched)
   INSERT INTO rooms (user1_id, status, waiting_expires_at)
-  VALUES (v_uid, 'waiting', now() + interval '1 minute')
+  VALUES (v_uid, 'waiting', now() + interval '5 minutes')
   RETURNING id INTO v_room_id;
 
   RETURN v_room_id;
@@ -288,7 +288,7 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COUNT(DISTINCT uid)::integer + 2 FROM (
+  SELECT COUNT(DISTINCT uid)::integer FROM (
     SELECT user1_id AS uid FROM rooms WHERE status IN ('waiting', 'active')
     UNION ALL
     SELECT user2_id AS uid FROM rooms WHERE status IN ('waiting', 'active') AND user2_id IS NOT NULL

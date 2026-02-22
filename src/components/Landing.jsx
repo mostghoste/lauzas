@@ -16,7 +16,7 @@ const WARNINGS = [
   { icon: 'fa-solid fa-handshake', text: 'Kitoje pusėje ekrano žmogus - išlik draugiškas.' },
 ]
 
-export default function Landing({ onFindFire, searching, error }) {
+export default function Landing({ onFindFire, searching, error, soundEnabled, onToggleSound }) {
   const [onlineCount, setOnlineCount] = useState(null)
   const [showWarning, setShowWarning] = useState(false)
 
@@ -42,6 +42,15 @@ export default function Landing({ onFindFire, searching, error }) {
 
   return (
     <div className="landing">
+      <button
+        className="btn-sound"
+        onClick={onToggleSound}
+        title={soundEnabled ? 'Išjungti garsą' : 'Įjungti garsą'}
+        aria-label={soundEnabled ? 'Išjungti garsą' : 'Įjungti garsą'}
+      >
+        <i className={soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark'} />
+      </button>
+
       {showWarning && (
         <div className="warning-overlay" onClick={() => setShowWarning(false)}>
           <div className="warning-modal" onClick={e => e.stopPropagation()}>

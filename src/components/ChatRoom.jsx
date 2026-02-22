@@ -52,7 +52,8 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     setEndedTagline(ENDED_TAGLINES[Math.floor(Math.random() * ENDED_TAGLINES.length)])
   }, [isEnded])
 
-  // While waiting, actively try to join another compatible waiting room every 3s
+  // While waiting, actively try to join another compatible waiting room every 3s.
+  // Heartbeat is sent here too — same interval, guaranteed to fire.
   useEffect(() => {
     if (!isWaiting || !room?.id) return
     const tryRematch = async () => {
@@ -158,6 +159,9 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
         table: 'rooms',
         filter: `id=eq.${roomId}`,
       }, payload => {
+        // Ignore pure heartbeat pings (only last_heartbeat_at changed)
+        if (payload.new.status === payload.old?.status &&
+            payload.new.fire_expires_at === payload.old?.fire_expires_at) return
         onRoomUpdateRef.current(payload.new)
       })
       .on('broadcast', { event: 'typing' }, () => {

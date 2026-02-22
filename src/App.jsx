@@ -3,12 +3,45 @@ import { supabase } from './supabase'
 import Landing from './components/Landing'
 import ChatRoom from './components/ChatRoom'
 
+function playMatchSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const notes = [523.25, 659.25, 783.99] // C5 E5 G5 — warm major arpeggio
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const t = ctx.currentTime + i * 0.13
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55)
+      osc.start(t)
+      osc.stop(t + 0.55)
+    })
+    setTimeout(() => ctx.close(), 2500)
+  } catch (_) {}
+}
+
 // States: loading → idle → searching → waiting → chatting → ended
 export default function App() {
   const [appState, setAppState] = useState('loading')
   const [userId, setUserId] = useState(null)
   const [room, setRoom] = useState(null)
   const [error, setError] = useState(null)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem('soundEnabled') !== 'false' } catch { return true }
+  })
+
+  function toggleSound() {
+    setSoundEnabled(prev => {
+      const next = !prev
+      try { localStorage.setItem('soundEnabled', String(next)) } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     initAuth()
@@ -83,6 +116,7 @@ export default function App() {
 
       setRoom(roomData)
       if (roomData.status === 'active') {
+        if (soundEnabled) playMatchSound()
         setAppState('chatting')
       } else {
         setAppState('waiting')
@@ -96,6 +130,7 @@ export default function App() {
   function handleRoomUpdate(updatedRoom) {
     setRoom(updatedRoom)
     if (updatedRoom.status === 'active' && appState !== 'chatting') {
+      if (soundEnabled) playMatchSound()
       setAppState('chatting')
     }
     if (updatedRoom.status === 'ended') {
@@ -129,6 +164,7 @@ export default function App() {
 
       setRoom(roomData)
       if (roomData.status === 'active') {
+        if (soundEnabled) playMatchSound()
         setAppState('chatting')
       } else {
         setAppState('waiting')
@@ -153,6 +189,8 @@ export default function App() {
         onFindFire={handleFindFire}
         searching={appState === 'searching'}
         error={error}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
       />
     )
   }
