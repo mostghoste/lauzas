@@ -6,7 +6,7 @@ import ChatRoom from './components/ChatRoom'
 function playMatchSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const notes = [523.25, 659.25, 783.99] // C5 E5 G5 — warm major arpeggio
+    const notes = [261.63, 392.00] // C4 G4 — two tones, an octave lower
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
