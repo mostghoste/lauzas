@@ -24,6 +24,7 @@ import Bonfire from './Bonfire'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import KeyboardHints from './KeyboardHints'
+import FireLeaderboard from './FireLeaderboard'
 
 export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireOut, onLeave, onSearchAgain }) {
   const [messages, setMessages] = useState([])
@@ -31,6 +32,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const [onlineCount, setOnlineCount] = useState(null)
   const [endedTagline, setEndedTagline] = useState('')
   const [strangerTyping, setStrangerTyping] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const channelsRef = useRef([])
   const roomChannelRef = useRef(null)
   const typingTimeoutRef = useRef(null)
@@ -258,6 +260,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   return (
     <div className="chat-room">
+      {showLeaderboard && <FireLeaderboard onClose={() => setShowLeaderboard(false)} />}
       <KeyboardHints appState={appState} />
       {!isEnded && (
         <button
@@ -267,6 +270,14 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
           {isChatting && leaveConfirm ? 'Ar tikrai nori išeiti?' : 'išeiti'}
         </button>
       )}
+      <button
+        className="btn-hamburger-room"
+        onClick={() => setShowLeaderboard(true)}
+        title="Ilgiausiai degantys laužai"
+        aria-label="Atidaryti lyderių lentelę"
+      >
+        <i className="fa-solid fa-bars" />
+      </button>
 
       {(isChatting || (isEnded && room?.fire_expires_at)) && (
         <Bonfire

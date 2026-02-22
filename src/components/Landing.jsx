@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import FireLeaderboard from './FireLeaderboard'
 
 function sielaForm(n) {
   const last = n % 10
@@ -19,6 +20,7 @@ const WARNINGS = [
 export default function Landing({ onFindFire, searching, error, soundEnabled, onToggleSound }) {
   const [onlineCount, setOnlineCount] = useState(null)
   const [showWarning, setShowWarning] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
 
   useEffect(() => {
     fetchCount()
@@ -42,6 +44,8 @@ export default function Landing({ onFindFire, searching, error, soundEnabled, on
 
   return (
     <div className="landing">
+      {showLeaderboard && <FireLeaderboard onClose={() => setShowLeaderboard(false)} />}
+
       <button
         className="btn-sound"
         onClick={onToggleSound}
@@ -49,6 +53,15 @@ export default function Landing({ onFindFire, searching, error, soundEnabled, on
         aria-label={soundEnabled ? 'Išjungti garsą' : 'Įjungti garsą'}
       >
         <i className={soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark'} />
+      </button>
+
+      <button
+        className="btn-hamburger"
+        onClick={() => setShowLeaderboard(true)}
+        title="Ilgiausiai degantys laužai"
+        aria-label="Atidaryti lyderių lentelę"
+      >
+        <i className="fa-solid fa-bars" />
       </button>
 
       {showWarning && (
