@@ -11,7 +11,6 @@ function formatDuration(seconds) {
 
 export default function FireLeaderboard({ onClose }) {
   const [period, setPeriod] = useState('today')
-  const [onlyActive, setOnlyActive] = useState(false)
   const [fires, setFires] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -21,7 +20,7 @@ export default function FireLeaderboard({ onClose }) {
       setLoading(true)
       const { data } = await supabase.rpc('get_top_fires', {
         p_period: period,
-        p_only_active: onlyActive,
+        p_only_active: false,
       })
       if (!cancelled) {
         setFires(data || [])
@@ -30,7 +29,7 @@ export default function FireLeaderboard({ onClose }) {
     }
     loadFires()
     return () => { cancelled = true }
-  }, [period, onlyActive])
+  }, [period])
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -45,7 +44,7 @@ export default function FireLeaderboard({ onClose }) {
           <i className="fa-solid fa-xmark" />
         </button>
 
-        <p className="leaderboard-title">Ilgiausiai degantys laužai</p>
+        <p className="leaderboard-title">Ilgiausiai degę laužai</p>
 
         <div className="period-tabs">
           <button
@@ -57,15 +56,6 @@ export default function FireLeaderboard({ onClose }) {
             onClick={() => setPeriod('alltime')}
           >Visų laikų</button>
         </div>
-
-        <label className="only-active-toggle">
-          <input
-            type="checkbox"
-            checked={onlyActive}
-            onChange={e => setOnlyActive(e.target.checked)}
-          />
-          Tik degantys
-        </label>
 
         <div className="leaderboard-list">
           {loading ? (

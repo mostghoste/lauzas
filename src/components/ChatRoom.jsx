@@ -33,6 +33,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const [endedTagline, setEndedTagline] = useState('')
   const [strangerTyping, setStrangerTyping] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [hasUnread, setHasUnread] = useState(false)
   const channelsRef = useRef([])
   const roomChannelRef = useRef(null)
   const typingTimeoutRef = useRef(null)
@@ -119,6 +120,47 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     return () => clearTimeout(t)
   }, [isWaiting, room?.waiting_expires_at])
 
+  // Clear unread flag when user returns to the tab
+  useEffect(() => {
+    function onVisible() { if (!document.hidden) setHasUnread(false) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
+  // Dynamic page title
+  useEffect(() => {
+    if (isWaiting) {
+      document.title = 'Klaidžiojama... | Laužas'
+      return
+    }
+    if (isEnded) {
+      document.title = 'Laužas - užeik į mišką'
+      return
+    }
+    if (!isChatting || !room?.fire_expires_at) return
+    function timerTitle() {
+      const msLeft = Math.max(0, new Date(room.fire_expires_at) - Date.now())
+      const totalSecs = Math.floor(msLeft / 1000)
+      const mins = Math.floor(totalSecs / 60)
+      const secs = totalSecs % 60
+      return `${mins}:${secs.toString().padStart(2, '0')} | Laužas`
+    }
+    if (hasUnread) {
+      let showAlert = true
+      function flash() {
+        document.title = showAlert ? 'Nauja žinutė! | Laužas' : timerTitle()
+        showAlert = !showAlert
+      }
+      flash()
+      const timer = setInterval(flash, 1000)
+      return () => clearInterval(timer)
+    }
+    function tick() { document.title = timerTitle() }
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [isWaiting, isChatting, isEnded, hasUnread, room?.fire_expires_at])
+
   // Reset leave confirm after 4 seconds of inactivity
   useEffect(() => {
     if (!leaveConfirm) return
@@ -190,6 +232,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
         if (payload.new.user_id !== userId) {
           setStrangerTyping(false)
           clearTimeout(typingTimeoutRef.current)
+          if (payload.new.type === 'user' && document.hidden) setHasUnread(true)
         }
       })
       .subscribe()

@@ -28,6 +28,20 @@ export default function Landing({ onFindFire, searching, error, soundEnabled, on
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    document.title = searching ? 'Klaidžiojama... | Laužas' : 'Laužas - užeik į mišką'
+  }, [searching])
+
+  useEffect(() => {
+    if (onlineCount === null) return
+    const base = 'Ženk į mišką. Užmegzk pokalbį su nepažįstamu. Kalbėk, iki kol laužas užges.'
+    const tail = onlineCount === 0
+      ? 'Miškas šiuo metu tuščias.'
+      : `Šiuo metu miške klaidžioja ${onlineCount} ${sielaForm(onlineCount)}.`
+    const meta = document.querySelector('meta[name="description"]')
+    if (meta) meta.setAttribute('content', `${base} ${tail}`)
+  }, [onlineCount])
+
   async function fetchCount() {
     const { data } = await supabase.rpc('get_online_count')
     if (data !== null) setOnlineCount(data)
