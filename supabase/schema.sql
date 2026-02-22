@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS rooms (
   user3_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   user4_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   user5_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  observer_id        uuid REFERENCES auth.users(id) ON DELETE SET NULL
+  observer_id        uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  extra_activated    boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -181,14 +182,15 @@ BEGIN
     RETURN v_room_id;
   END IF;
 
-  -- 3. Join an active triple room as user3
+  -- 3. Join an active triple room as user3 (only if slot never used before)
   UPDATE rooms
-  SET user3_id = v_uid
+  SET user3_id = v_uid, extra_activated = true
   WHERE id = (
     SELECT id FROM rooms
     WHERE room_type = 'triple'
       AND status = 'active'
       AND user3_id IS NULL
+      AND extra_activated = false
       AND fire_expires_at > now()
       AND user1_id != v_uid
       AND (user2_id IS NULL OR user2_id != v_uid)
@@ -201,18 +203,21 @@ BEGIN
   IF v_room_id IS NOT NULL THEN
     INSERT INTO messages (room_id, user_id, content, type)
     VALUES (v_room_id, v_uid, 'room_triple', 'system'),
-           (v_room_id, v_uid, 'room_triple_sub', 'system');
+           (v_room_id, v_uid, 'room_triple_sub', 'system'),
+           (v_room_id, v_uid, 'room_triple_guest', 'system'),
+           (v_room_id, v_uid, 'room_triple_guest_sub', 'system');
     RETURN v_room_id;
   END IF;
 
-  -- 4. Join an active stalked room as observer
+  -- 4. Join an active stalked room as observer (only if slot never used before)
   UPDATE rooms
-  SET observer_id = v_uid
+  SET observer_id = v_uid, extra_activated = true
   WHERE id = (
     SELECT id FROM rooms
     WHERE room_type = 'stalked'
       AND status = 'active'
       AND observer_id IS NULL
+      AND extra_activated = false
       AND fire_expires_at > now()
       AND user1_id != v_uid
       AND (user2_id IS NULL OR user2_id != v_uid)
@@ -269,8 +274,7 @@ BEGIN
   END IF;
 
   -- 6. Create a new waiting room
-  -- TODO: revert to random probabilities after testing
-  v_type := 'triple';
+  v_type := CASE WHEN random() < 0.10 THEN 'triple' ELSE 'normal' END;
 
   INSERT INTO rooms (user1_id, status, waiting_expires_at, room_type, last_heartbeat_at)
   VALUES (v_uid, 'waiting', now() + interval '5 minutes', v_type, now())
@@ -337,14 +341,15 @@ BEGIN
     RETURN v_new_room;
   END IF;
 
-  -- Try triple room (join as user3)
+  -- Try triple room (join as user3, only if never activated)
   UPDATE rooms
-  SET user3_id = v_uid
+  SET user3_id = v_uid, extra_activated = true
   WHERE id = (
     SELECT id FROM rooms
     WHERE room_type = 'triple'
       AND status = 'active'
       AND user3_id IS NULL
+      AND extra_activated = false
       AND fire_expires_at > now()
       AND user1_id != v_uid
       AND (user2_id IS NULL OR user2_id != v_uid)
@@ -357,19 +362,22 @@ BEGIN
   IF v_new_room IS NOT NULL THEN
     INSERT INTO messages (room_id, user_id, content, type)
     VALUES (v_new_room, v_uid, 'room_triple', 'system'),
-           (v_new_room, v_uid, 'room_triple_sub', 'system');
+           (v_new_room, v_uid, 'room_triple_sub', 'system'),
+           (v_new_room, v_uid, 'room_triple_guest', 'system'),
+           (v_new_room, v_uid, 'room_triple_guest_sub', 'system');
     UPDATE rooms SET status = 'ended' WHERE id = p_current_room_id;
     RETURN v_new_room;
   END IF;
 
-  -- Try stalked room (join as observer)
+  -- Try stalked room (join as observer, only if never activated)
   UPDATE rooms
-  SET observer_id = v_uid
+  SET observer_id = v_uid, extra_activated = true
   WHERE id = (
     SELECT id FROM rooms
     WHERE room_type = 'stalked'
       AND status = 'active'
       AND observer_id IS NULL
+      AND extra_activated = false
       AND fire_expires_at > now()
       AND user1_id != v_uid
       AND (user2_id IS NULL OR user2_id != v_uid)

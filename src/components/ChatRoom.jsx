@@ -196,7 +196,17 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       .select('*')
       .eq('room_id', room.id)
       .order('created_at', { ascending: true })
-    if (data) setMessages(data)
+    if (!data) return
+    if (isTripleUser3) {
+      // Svečias sees all system messages + only the last 5 user messages
+      const sysMsgs  = data.filter(m => m.type === 'system')
+      const userMsgs = data.filter(m => m.type === 'user').slice(-5)
+      setMessages([...sysMsgs, ...userMsgs].sort((a, b) =>
+        new Date(a.created_at) - new Date(b.created_at)
+      ))
+    } else {
+      setMessages(data)
+    }
   }
 
   function setupSubscriptions(roomId) {
@@ -284,9 +294,15 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   async function handleLeave() {
     if (room?.id && !isEnded) {
-      // Only insert 'leave' system message for normal chatters
-      if (isChatting && !isObserver && !isTripleUser3 && !isEternal) {
-        await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
+      // Insert role-specific leave system message (not for observer or eternal)
+      if (isChatting && !isObserver && !isEternal) {
+        let leaveContent = 'leave'
+        if (room?.room_type === 'triple') {
+          if (isTripleUser3) leaveContent = 'leave_guest'
+          else if (room.user1_id === userId) leaveContent = 'leave_1'
+          else leaveContent = 'leave_2'
+        }
+        await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: leaveContent })
       }
       await supabase.rpc('leave_room', { p_room_id: room.id })
 
