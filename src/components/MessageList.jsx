@@ -26,22 +26,27 @@ function getSystemText(content, msgUserId, currentUserId) {
   }
 }
 
-function getSenderClass(msg, userId, room) {
-  if (msg.user_id === userId) return 'you'
-  if (room?.user3_id && msg.user_id === room.user3_id) return 'stranger stranger-3'
-  if (room?.user4_id && msg.user_id === room.user4_id) return 'stranger stranger-4'
-  if (room?.user5_id && msg.user_id === room.user5_id) return 'stranger stranger-5'
+function getSlotClass(msgUserId, currentUserId, room) {
+  if (msgUserId === currentUserId) return 'you'
+  // In multi-person rooms, colour each slot distinctly
+  if (room?.user3_id || room?.user4_id || room?.user5_id) {
+    if (msgUserId === room?.user1_id) return 'stranger'
+    if (msgUserId === room?.user2_id) return 'stranger stranger-2'
+    if (msgUserId === room?.user3_id) return 'stranger stranger-3'
+    if (msgUserId === room?.user4_id) return 'stranger stranger-4'
+    if (msgUserId === room?.user5_id) return 'stranger stranger-5'
+  }
   return 'stranger'
 }
 
-export default function MessageList({ messages, userId, strangerTyping, room }) {
+export default function MessageList({ messages, userId, typingUsers = [], room }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, strangerTyping])
+  }, [messages, typingUsers])
 
-  if (messages.length === 0 && !strangerTyping) {
+  if (messages.length === 0 && typingUsers.length === 0) {
     return (
       <div className="message-list" style={{ alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         pasveikink savo nepažįstamąjį
@@ -62,7 +67,7 @@ export default function MessageList({ messages, userId, strangerTyping, room }) 
             </div>
           )
         }
-        const senderClass = getSenderClass(msg, userId, room)
+        const senderClass = getSlotClass(msg.user_id, userId, room)
         return (
           <div key={msg.id} className={`message-row ${senderClass}`}>
             <div className="message-bubble">{msg.content}</div>
@@ -70,13 +75,13 @@ export default function MessageList({ messages, userId, strangerTyping, room }) 
           </div>
         )
       })}
-      {strangerTyping && (
-        <div className="message-row stranger">
+      {typingUsers.map(tid => (
+        <div key={tid} className={`message-row ${getSlotClass(tid, userId, room)}`}>
           <div className="message-bubble typing-dots">
             <span /><span /><span />
           </div>
         </div>
-      )}
+      ))}
       <div ref={bottomRef} />
     </div>
   )

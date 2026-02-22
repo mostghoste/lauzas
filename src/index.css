@@ -725,6 +725,10 @@ body {
   border-bottom-left-radius: 3px;
 }
 
+.message-row.stranger-2 .message-bubble {
+  border-color: #6b4a3a;
+}
+
 .message-row.stranger-3 .message-bubble {
   border-color: #3a6b6b;
 }

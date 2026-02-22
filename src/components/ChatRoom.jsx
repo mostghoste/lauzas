@@ -31,12 +31,12 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const [leaveConfirm, setLeaveConfirm] = useState(false)
   const [onlineCount, setOnlineCount] = useState(null)
   const [endedTagline, setEndedTagline] = useState('')
-  const [strangerTyping, setStrangerTyping] = useState(false)
+  const [typingUsers, setTypingUsers] = useState({}) // { userId: true }
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [hasUnread, setHasUnread] = useState(false)
   const channelsRef = useRef([])
   const roomChannelRef = useRef(null)
-  const typingTimeoutRef = useRef(null)
+  const typingTimeoutsRef = useRef({})
   const lastTypingSentRef = useRef(0)
   // Always keep a fresh reference so subscription callbacks never use a stale closure
   const onRoomUpdateRef = useRef(onRoomUpdate)
@@ -215,10 +215,15 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
             payload.new.fire_expires_at === payload.old?.fire_expires_at) return
         onRoomUpdateRef.current(payload.new)
       })
-      .on('broadcast', { event: 'typing' }, () => {
-        setStrangerTyping(true)
-        clearTimeout(typingTimeoutRef.current)
-        typingTimeoutRef.current = setTimeout(() => setStrangerTyping(false), 3000)
+      .on('broadcast', { event: 'typing' }, (msg) => {
+        const tid = msg?.payload?.user_id
+        if (!tid || tid === userId) return
+        clearTimeout(typingTimeoutsRef.current[tid])
+        setTypingUsers(prev => ({ ...prev, [tid]: true }))
+        typingTimeoutsRef.current[tid] = setTimeout(() => {
+          setTypingUsers(prev => { const n = { ...prev }; delete n[tid]; return n })
+          delete typingTimeoutsRef.current[tid]
+        }, 3000)
       })
       .subscribe()
 
@@ -237,8 +242,10 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
           return [...prev, payload.new]
         })
         if (payload.new.user_id !== userId) {
-          setStrangerTyping(false)
-          clearTimeout(typingTimeoutRef.current)
+          const tid = payload.new.user_id
+          clearTimeout(typingTimeoutsRef.current[tid])
+          delete typingTimeoutsRef.current[tid]
+          setTypingUsers(prev => { const n = { ...prev }; delete n[tid]; return n })
           if (payload.new.type === 'user' && document.hidden) setHasUnread(true)
         }
       })
@@ -251,13 +258,16 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     channelsRef.current.forEach(ch => supabase.removeChannel(ch))
     channelsRef.current = []
     roomChannelRef.current = null
+    Object.values(typingTimeoutsRef.current).forEach(clearTimeout)
+    typingTimeoutsRef.current = {}
+    setTypingUsers({})
   }
 
   function handleTyping() {
     const now = Date.now()
     if (now - lastTypingSentRef.current < 2000) return
     lastTypingSentRef.current = now
-    roomChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: {} })
+    roomChannelRef.current?.send({ type: 'broadcast', event: 'typing', payload: { user_id: userId } })
   }
 
   async function handleWaitingTimeout() {
@@ -360,7 +370,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
       {isChatting && (
         <>
-          <MessageList messages={messages} userId={userId} strangerTyping={strangerTyping} room={room} />
+          <MessageList messages={messages} userId={userId} typingUsers={Object.keys(typingUsers)} room={room} />
           {!isObserver && <MessageInput onSend={handleSend} onTyping={handleTyping} disabled={false} />}
         </>
       )}
