@@ -9,15 +9,27 @@ function formatTime(seconds) {
 }
 
 export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: staticScale, timeLeft: staticTime }) {
+  const isEternal  = room?.room_type === 'eternal'
+  const isObserver = room?.observer_id === userId
+
   const [timeLeft, setTimeLeft] = useState(staticTime ?? 30)
   const [woodCooldown, setWoodCooldown] = useState(0)
   const [addingWood, setAddingWood] = useState(false)
+  const [ugneleCount, setUgneleCount] = useState(0)
   const timerRef = useRef(null)
   const cooldownRef = useRef(null)
 
+  // Fetch ugnele count for eternal rooms
+  useEffect(() => {
+    if (!isEternal || isStatic) return
+    supabase.rpc('get_my_ugneles').then(({ data }) => {
+      if (data !== null) setUgneleCount(data)
+    })
+  }, [isEternal, isStatic])
+
   // Sync time from room
   useEffect(() => {
-    if (isStatic || !room?.fire_expires_at) return
+    if (isStatic || isEternal || !room?.fire_expires_at) return
 
     // Other user left — extinguish immediately without firing onFireOut
     if (room?.status === 'ended') {
@@ -46,7 +58,7 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
 
   // Ctrl+Space shortcut for add wood
   useEffect(() => {
-    if (isStatic) return
+    if (isStatic || isObserver) return
     function onKeyDown(e) {
       if (e.code === 'Space' && e.ctrlKey) {
         e.preventDefault()
@@ -73,11 +85,13 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
   }, [woodCooldown > 0])
 
   async function handleAddWood() {
-    if (!room || woodCooldown > 0 || addingWood) return
+    if (!room || woodCooldown > 0 || addingWood || isObserver) return
     setAddingWood(true)
     try {
       await supabase.rpc('add_wood', { p_room_id: room.id })
-      await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'add_wood' })
+      const msgContent = isEternal ? 'earn_ugnele' : 'add_wood'
+      await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: msgContent })
+      if (isEternal) setUgneleCount(c => c + 1)
       setWoodCooldown(3)
     } finally {
       setAddingWood(false)
@@ -85,8 +99,8 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
   }
 
   const effectiveTimeLeft = isStatic ? (staticTime ?? 180) : timeLeft
-  const fireScale = isStatic ? (staticScale ?? 1) : Math.max(0.2, Math.min(1, effectiveTimeLeft / 30))
-  const dying = effectiveTimeLeft < 30 && !isStatic
+  const fireScale = isEternal ? 1 : isStatic ? (staticScale ?? 1) : Math.max(0.2, Math.min(1, effectiveTimeLeft / 30))
+  const dying = effectiveTimeLeft < 30 && !isStatic && !isEternal
 
   return (
     <div className="bonfire-wrapper">
@@ -100,20 +114,38 @@ export default function Bonfire({ room, userId, onFireOut, isStatic, fireScale: 
         <div className="logs" />
       </div>
 
-      {!isStatic && (
+      {!isStatic && isEternal && !isObserver && (
+        <div className="bonfire-actions">
+          <button
+            className="btn-wood"
+            onClick={handleAddWood}
+            disabled={woodCooldown > 0 || addingWood}
+          >
+            Įdėti malką
+          </button>
+          {woodCooldown > 0 && (
+            <span className="wood-cooldown">{woodCooldown}s</span>
+          )}
+          <span className="ugnele-count" title="Tavo Ugnelės">🔥 {ugneleCount}</span>
+        </div>
+      )}
+
+      {!isStatic && !isEternal && (
         <>
           <div className={`bonfire-timer${dying ? ' dying' : ''}`}>
             {formatTime(effectiveTimeLeft)}
           </div>
           <div className="bonfire-actions">
-            <button
-              className="btn-wood"
-              onClick={handleAddWood}
-              disabled={woodCooldown > 0 || addingWood || effectiveTimeLeft === 0}
-            >
-              Įdėti malką
-            </button>
-            {woodCooldown > 0 && (
+            {!isObserver && (
+              <button
+                className="btn-wood"
+                onClick={handleAddWood}
+                disabled={woodCooldown > 0 || addingWood || effectiveTimeLeft === 0}
+              >
+                Įdėti malką
+              </button>
+            )}
+            {!isObserver && woodCooldown > 0 && (
               <span className="wood-cooldown">{woodCooldown}s</span>
             )}
           </div>

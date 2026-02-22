@@ -1,92 +1,46 @@
 -- ============================================================
--- laužas-chat — Supabase Schema
--- ============================================================
--- Setup steps (Supabase Dashboard):
---   1. Auth > Providers > Anonymous — enable it
---   2. Database > Replication — enable rooms and messages tables
---   3. Run this file in the SQL editor
+-- Rare room variants migration
+-- Run this in Supabase SQL Editor (Database > SQL Editor)
 -- ============================================================
 
--- ──────────────────────────────
--- Tables
--- ──────────────────────────────
+-- 1. Add columns to rooms
+ALTER TABLE rooms
+  ADD COLUMN IF NOT EXISTS room_type text NOT NULL DEFAULT 'normal'
+    CHECK (room_type IN ('normal', 'stalked', 'triple', 'eternal')),
+  ADD COLUMN IF NOT EXISTS user3_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS user4_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS user5_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS observer_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
-CREATE TABLE IF NOT EXISTS rooms (
-  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at         timestamptz NOT NULL DEFAULT now(),
-  status             text NOT NULL DEFAULT 'waiting'
-                       CHECK (status IN ('waiting', 'active', 'ended')),
-  room_type          text NOT NULL DEFAULT 'normal'
-                       CHECK (room_type IN ('normal', 'stalked', 'triple', 'eternal')),
-  fire_expires_at    timestamptz,
-  waiting_expires_at timestamptz,
-  fire_started_at    timestamptz,
-  ended_at           timestamptz,
-  last_heartbeat_at  timestamptz DEFAULT now(),
-  user1_id           uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  user2_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  user3_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  user4_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  user5_id           uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  observer_id        uuid REFERENCES auth.users(id) ON DELETE SET NULL
-);
+-- Also ensure previous-migration columns exist
+ALTER TABLE rooms
+  ADD COLUMN IF NOT EXISTS last_heartbeat_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS fire_started_at timestamptz,
+  ADD COLUMN IF NOT EXISTS ended_at timestamptz;
 
-CREATE TABLE IF NOT EXISTS messages (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id    uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content    text NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
-  type       text NOT NULL DEFAULT 'user' CHECK (type IN ('user', 'system')),
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
+-- 2. Create ugneles table
 CREATE TABLE IF NOT EXISTS ugneles (
   user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   count      integer NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- ──────────────────────────────
--- Indexes
--- ──────────────────────────────
-
-CREATE INDEX IF NOT EXISTS idx_rooms_waiting
-  ON rooms(status) WHERE status = 'waiting';
-
-CREATE INDEX IF NOT EXISTS idx_messages_room
-  ON messages(room_id, created_at);
-
--- Prevents both users inserting a duplicate fire_out event for the same room
-CREATE UNIQUE INDEX IF NOT EXISTS idx_one_fire_out_per_room
-  ON messages(room_id) WHERE content = 'fire_out';
-
--- ──────────────────────────────
--- Row-Level Security
--- ──────────────────────────────
-
-ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ugneles ENABLE ROW LEVEL SECURITY;
 
--- rooms: SELECT (all room participants)
+DROP POLICY IF EXISTS ugneles_select ON ugneles;
+CREATE POLICY ugneles_select ON ugneles
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- 3. Update RLS policies
+
+-- rooms: SELECT (all participants including extra users and observer)
 DROP POLICY IF EXISTS rooms_select ON rooms;
 CREATE POLICY rooms_select ON rooms
   FOR SELECT USING (
     auth.uid() IN (user1_id, user2_id, user3_id, user4_id, user5_id, observer_id)
   );
 
--- rooms: INSERT (user creating as user1, no partner yet)
-DROP POLICY IF EXISTS rooms_insert ON rooms;
-CREATE POLICY rooms_insert ON rooms
-  FOR INSERT WITH CHECK (
-    auth.uid() = user1_id AND user2_id IS NULL
-  );
-
--- rooms: UPDATE — intentionally no client-side UPDATE policy.
--- All room mutations go through SECURITY DEFINER RPCs which bypass RLS.
-DROP POLICY IF EXISTS rooms_update ON rooms;
-
--- messages: SELECT (must be in the room in any role)
+-- messages: SELECT
 DROP POLICY IF EXISTS messages_select ON messages;
 CREATE POLICY messages_select ON messages
   FOR SELECT USING (
@@ -97,7 +51,7 @@ CREATE POLICY messages_select ON messages
     )
   );
 
--- messages: INSERT (chatters only — observer cannot send; eternal has no timer check)
+-- messages: INSERT (chatters only — not observer; eternal rooms have no fire_expires_at check)
 DROP POLICY IF EXISTS messages_insert ON messages;
 CREATE POLICY messages_insert ON messages
   FOR INSERT WITH CHECK (
@@ -112,18 +66,7 @@ CREATE POLICY messages_insert ON messages
     )
   );
 
--- ugneles: SELECT (owner only)
-DROP POLICY IF EXISTS ugneles_select ON ugneles;
-CREATE POLICY ugneles_select ON ugneles
-  FOR SELECT USING (auth.uid() = user_id);
-
--- ──────────────────────────────
--- Functions
--- ──────────────────────────────
-
--- find_or_create_room(): atomically joins/creates a room.
--- Priority: own existing room → eternal slot → triple user3 → stalked observer →
---           activate waiting room → create new waiting room (random type)
+-- 4. Updated find_or_create_room
 CREATE OR REPLACE FUNCTION find_or_create_room()
 RETURNS uuid
 LANGUAGE plpgsql
@@ -133,6 +76,7 @@ AS $func$
 DECLARE
   v_room_id uuid;
   v_uid     uuid := auth.uid();
+  v_rand    float;
   v_type    text;
 BEGIN
   IF v_uid IS NULL THEN
@@ -268,9 +212,14 @@ BEGIN
     RETURN v_room_id;
   END IF;
 
-  -- 6. Create a new waiting room
-  -- TODO: revert to random probabilities after testing
-  v_type := 'triple';
+  -- 6. Create a new waiting room with random type
+  v_rand := random();
+  v_type := CASE
+    WHEN v_rand < 0.02 THEN 'eternal'
+    WHEN v_rand < 0.07 THEN 'stalked'
+    WHEN v_rand < 0.12 THEN 'triple'
+    ELSE 'normal'
+  END;
 
   INSERT INTO rooms (user1_id, status, waiting_expires_at, room_type, last_heartbeat_at)
   VALUES (v_uid, 'waiting', now() + interval '5 minutes', v_type, now())
@@ -280,8 +229,7 @@ BEGIN
 END;
 $func$;
 
--- try_rematch(): called by waiting clients every 3s.
--- Updates heartbeat and tries to join any available room (eternal/triple/stalked/waiting).
+-- 5. Updated try_rematch (heartbeat + special room joins)
 CREATE OR REPLACE FUNCTION try_rematch(p_current_room_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -297,6 +245,7 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  -- Verify caller owns this waiting room
   IF NOT EXISTS (
     SELECT 1 FROM rooms
     WHERE id = p_current_room_id
@@ -384,7 +333,7 @@ BEGIN
     RETURN v_new_room;
   END IF;
 
-  -- Try standard waiting room
+  -- Try standard waiting room join
   UPDATE rooms
   SET user2_id        = v_uid,
       status          = 'active',
@@ -432,7 +381,7 @@ BEGIN
 END;
 $func$;
 
--- add_wood(): extend fire by 1 minute (capped at 10 min), or award 1 Ugnelė in eternal rooms
+-- 6. Updated add_wood (eternal → award Ugnelė instead of extending timer)
 CREATE OR REPLACE FUNCTION add_wood(p_room_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -474,7 +423,7 @@ BEGIN
 END;
 $func$;
 
--- leave_room(): observer clears slot; eternal non-creator removes slot; others end the room
+-- 7. Updated leave_room (eternal slot removal, observer clearing, standard end)
 CREATE OR REPLACE FUNCTION leave_room(p_room_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -499,7 +448,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Observer: clear observer slot only
+  -- Observer: just clear observer slot
   IF v_room.observer_id = v_uid THEN
     UPDATE rooms SET observer_id = NULL WHERE id = p_room_id;
     RETURN;
@@ -511,7 +460,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Eternal active: remove user slot (or end if creator leaves)
+  -- Eternal active room: remove slot (end only if creator leaves)
   IF v_room.room_type = 'eternal' AND v_room.status = 'active' THEN
     IF v_room.user1_id = v_uid THEN
       UPDATE rooms SET status = 'ended', ended_at = now() WHERE id = p_room_id;
@@ -534,29 +483,7 @@ BEGIN
 END;
 $func$;
 
--- get_online_count(): counts distinct users in open rooms (all roles)
-CREATE OR REPLACE FUNCTION get_online_count()
-RETURNS integer
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $func$
-  SELECT COUNT(DISTINCT uid)::integer FROM (
-    SELECT user1_id   AS uid FROM rooms WHERE status IN ('waiting', 'active')
-    UNION ALL
-    SELECT user2_id   FROM rooms WHERE status IN ('waiting', 'active') AND user2_id   IS NOT NULL
-    UNION ALL
-    SELECT user3_id   FROM rooms WHERE status IN ('waiting', 'active') AND user3_id   IS NOT NULL
-    UNION ALL
-    SELECT user4_id   FROM rooms WHERE status IN ('waiting', 'active') AND user4_id   IS NOT NULL
-    UNION ALL
-    SELECT user5_id   FROM rooms WHERE status IN ('waiting', 'active') AND user5_id   IS NOT NULL
-    UNION ALL
-    SELECT observer_id FROM rooms WHERE status IN ('waiting', 'active') AND observer_id IS NOT NULL
-  ) u;
-$func$;
-
--- insert_system_message(): inserts a system event (bypasses RLS fire check)
+-- 8. Updated insert_system_message (allow all room members)
 CREATE OR REPLACE FUNCTION insert_system_message(p_room_id uuid, p_content text)
 RETURNS void
 LANGUAGE plpgsql
@@ -584,7 +511,7 @@ BEGIN
 END;
 $func$;
 
--- get_my_ugneles(): returns caller's Ugnelė count
+-- 9. New get_my_ugneles function
 CREATE OR REPLACE FUNCTION get_my_ugneles()
 RETURNS integer
 LANGUAGE sql
@@ -597,7 +524,29 @@ AS $func$
   )::integer;
 $func$;
 
--- get_top_fires(): leaderboard — excludes eternal rooms
+-- 10. Updated get_online_count (include user3-5 and observer)
+CREATE OR REPLACE FUNCTION get_online_count()
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $func$
+  SELECT COUNT(DISTINCT uid)::integer FROM (
+    SELECT user1_id AS uid FROM rooms WHERE status IN ('waiting', 'active')
+    UNION ALL
+    SELECT user2_id FROM rooms WHERE status IN ('waiting', 'active') AND user2_id IS NOT NULL
+    UNION ALL
+    SELECT user3_id FROM rooms WHERE status IN ('waiting', 'active') AND user3_id IS NOT NULL
+    UNION ALL
+    SELECT user4_id FROM rooms WHERE status IN ('waiting', 'active') AND user4_id IS NOT NULL
+    UNION ALL
+    SELECT user5_id FROM rooms WHERE status IN ('waiting', 'active') AND user5_id IS NOT NULL
+    UNION ALL
+    SELECT observer_id FROM rooms WHERE status IN ('waiting', 'active') AND observer_id IS NOT NULL
+  ) u;
+$func$;
+
+-- 11. Updated get_top_fires (exclude eternal rooms)
 CREATE OR REPLACE FUNCTION get_top_fires(p_period text DEFAULT 'today', p_only_active boolean DEFAULT false)
 RETURNS TABLE (duration_seconds numeric, is_active boolean)
 LANGUAGE sql
@@ -624,11 +573,8 @@ AS $func$
   LIMIT 5;
 $func$;
 
--- ──────────────────────────────
--- Scheduled cleanup (pg_cron)
--- ──────────────────────────────
--- Requires pg_cron extension: Supabase Dashboard > Database > Extensions > pg_cron
-
+-- 12. Update expire-active-rooms cron (add ended_at, exclude eternal)
+SELECT cron.unschedule('expire-active-rooms');
 SELECT cron.schedule(
   'expire-active-rooms',
   '* * * * *',
@@ -640,21 +586,3 @@ SELECT cron.schedule(
       AND fire_expires_at < now();
   $$
 );
-
-SELECT cron.schedule(
-  'expire-waiting-rooms',
-  '* * * * *',
-  $$
-    UPDATE rooms
-    SET status = 'ended'
-    WHERE status = 'waiting'
-      AND waiting_expires_at < now();
-  $$
-);
-
--- ──────────────────────────────
--- Realtime
--- ──────────────────────────────
-
-ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;

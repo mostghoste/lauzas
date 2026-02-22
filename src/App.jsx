@@ -72,8 +72,9 @@ export default function App() {
       const roomData = existing?.[0] ?? null
 
       if (roomData?.status === 'active') {
-        const fireAlive = roomData.fire_expires_at &&
-          new Date(roomData.fire_expires_at) > new Date()
+        const isEternal = roomData.room_type === 'eternal'
+        const fireAlive = isEternal || (roomData.fire_expires_at &&
+          new Date(roomData.fire_expires_at) > new Date())
         if (fireAlive) {
           setRoom(roomData)
           setAppState('chatting')

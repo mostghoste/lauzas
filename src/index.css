@@ -725,6 +725,18 @@ body {
   border-bottom-left-radius: 3px;
 }
 
+.message-row.stranger-3 .message-bubble {
+  border-color: #3a6b6b;
+}
+
+.message-row.stranger-4 .message-bubble {
+  border-color: #5a3d6b;
+}
+
+.message-row.stranger-5 .message-bubble {
+  border-color: #6b5a2a;
+}
+
 .message-time {
   font-size: 0.68rem;
   color: var(--text-muted);
@@ -744,6 +756,22 @@ body {
   font-style: italic;
   text-align: center;
   padding: 0.15rem 0;
+}
+
+.system-message-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  opacity: 0.7;
+  padding: 0.05rem 0;
+}
+
+.ugnele-count {
+  font-size: 0.8rem;
+  color: var(--fire-1);
+  font-family: 'Jersey 15', monospace;
+  letter-spacing: 0.04em;
 }
 
 /* ──────────────────────────────

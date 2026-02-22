@@ -48,6 +48,9 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
   const isEnded = appState === 'ended'
   const isWaiting = appState === 'waiting'
   const isChatting = appState === 'chatting'
+  const isEternal      = room?.room_type === 'eternal'
+  const isObserver     = room?.observer_id === userId
+  const isTripleUser3  = room?.room_type === 'triple' && room?.user3_id === userId
 
   // Pick a fresh tagline each time the chat ends
   useEffect(() => {
@@ -137,7 +140,11 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
       document.title = 'Laužas - užeik į mišką'
       return
     }
-    if (!isChatting || !room?.fire_expires_at) return
+    if (!isChatting) return
+    if (isEternal || !room?.fire_expires_at) {
+      document.title = 'Laužas - užeik į mišką'
+      return
+    }
     function timerTitle() {
       const msLeft = Math.max(0, new Date(room.fire_expires_at) - Date.now())
       const totalSecs = Math.floor(msLeft / 1000)
@@ -159,7 +166,7 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
     tick()
     const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
-  }, [isWaiting, isChatting, isEnded, hasUnread, room?.fire_expires_at])
+  }, [isWaiting, isChatting, isEnded, isEternal, hasUnread, room?.fire_expires_at])
 
   // Reset leave confirm after 4 seconds of inactivity
   useEffect(() => {
@@ -267,10 +274,17 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
   async function handleLeave() {
     if (room?.id && !isEnded) {
-      if (isChatting) {
+      // Only insert 'leave' system message for normal chatters
+      if (isChatting && !isObserver && !isTripleUser3 && !isEternal) {
         await supabase.rpc('insert_system_message', { p_room_id: room.id, p_content: 'leave' })
       }
       await supabase.rpc('leave_room', { p_room_id: room.id })
+
+      // Observers, triple user3, and eternal non-creators go back to idle (room continues)
+      if (isChatting && (isObserver || isTripleUser3 || (isEternal && room.user1_id !== userId))) {
+        onLeave()
+        return
+      }
     }
     if (isWaiting) {
       // Replace any stale messages from a previous chat with a single local notice
@@ -282,12 +296,13 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
         created_at: new Date().toISOString(),
       }])
     }
-    onFireOut() // Always land on ended screen (waiting or chatting)
+    onFireOut() // Land on ended screen
   }
 
   function handleLeaveClick() {
     if (isEnded) { onLeave(); return }
     if (isWaiting) { handleLeave(); return }
+    if (isObserver || isTripleUser3 || isEternal) { handleLeave(); return }
     if (leaveConfirm) { handleLeave(); return }
     setLeaveConfirm(true)
   }
@@ -345,14 +360,14 @@ export default function ChatRoom({ room, userId, appState, onRoomUpdate, onFireO
 
       {isChatting && (
         <>
-          <MessageList messages={messages} userId={userId} strangerTyping={strangerTyping} />
-          <MessageInput onSend={handleSend} onTyping={handleTyping} disabled={false} />
+          <MessageList messages={messages} userId={userId} strangerTyping={strangerTyping} room={room} />
+          {!isObserver && <MessageInput onSend={handleSend} onTyping={handleTyping} disabled={false} />}
         </>
       )}
 
       {isEnded && (
         <>
-          <MessageList messages={messages} userId={userId} />
+          <MessageList messages={messages} userId={userId} room={room} />
           <div className="ended-overlay" style={{ flex: 'none', padding: '1rem', borderTop: '1px solid var(--border)' }}>
             <p className="ended-title">laužas užgeso</p>
             <p className="ended-sub">{endedTagline}</p>
